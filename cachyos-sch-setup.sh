@@ -6,11 +6,12 @@ echo "========================================================="
 echo ""
 
 # Preguntar al usuario por el navegador antes de empezar todo el proceso
+# Se añade </dev/tty para que funcione correctamente al ejecutar vía curl | bash
 echo "¿Qué navegador web prefieres instalar?"
 echo "1) Google Chrome"
 echo "2) Brave Browser"
 echo "3) Ninguno / Mantener el actual"
-read -p "Selecciona una opción [1-3]: " BROWSER_CHOICE
+read -p "Selecciona una opción [1-3]: " BROWSER_CHOICE </dev/tty
 
 BROWSER_PKG=""
 case $BROWSER_CHOICE in
@@ -26,7 +27,7 @@ sudo timedatectl set-local-rtc 1 --adjust-system-clock
 
 # 2. Instalar todos los paquetes base (Añadida la Nerd Font para los iconos)
 echo "[2/8] Instalando Zellij, Temas, Python y Nerd Fonts..."
-paru -S --needed zellij gnome-tweaks orchis-theme tela-circle-icon-theme-git python python-pip ttf-meslo-nerd curl git
+paru -S --noconfirm --needed zellij gnome-tweaks orchis-theme tela-circle-icon-theme-git python python-pip ttf-meslo-nerd curl git
 
 # 3. Configurar Alacritty (Esquema Oscuro con acentos Verdes)
 echo "[3/8] Configurando Alacritty y la fuente Nerd..."
@@ -142,25 +143,25 @@ if ls /sys/class/power_supply/ | grep -q -i "BAT"; then
     # Detección de CPU para drivers de decodificación de video eficientes
     if grep -q -i "intel" /proc/cpuinfo; then
         echo " -> Procesador Intel detectado. Instalando drivers de video..."
-        paru -S --needed intel-media-driver libva-intel-driver auto-cpufreq powertop
+        paru -S --noconfirm --needed intel-media-driver libva-intel-driver auto-cpufreq powertop
     elif grep -q -i "amd" /proc/cpuinfo; then
         echo " -> Procesador AMD detectado. Instalando drivers de video..."
-        paru -S --needed libva-mesa-driver mesa-vdpau auto-cpufreq powertop
+        paru -S --noconfirm --needed libva-mesa-driver mesa-vdpau auto-cpufreq powertop
     else
-        paru -S --needed auto-cpufreq powertop
+        paru -S --noconfirm --needed auto-cpufreq powertop
     fi
 
     # Detección de GPU Dedicada (NVIDIA) en portátiles (Gráficas híbridas)
     if lspci | grep -q -i "nvidia"; then
         echo " -> Gráfica NVIDIA detectada. Instalando EnvyControl..."
-        paru -S --needed envycontrol
+        paru -S --noconfirm --needed envycontrol
         echo " ⚠️ NOTA: Para máximo ahorro de batería en este portátil, ejecuta 'sudo envycontrol -s integrated' y reinicia."
     fi
 
     sudo systemctl disable --now power-profiles-daemon
     sudo systemctl enable --now auto-cpufreq
     
-    # Servicio Powertop con el parche "-" para evitar el fallo (Como vimos en la captura)
+    # Servicio Powertop con el parche "-" para evitar el fallo
     sudo bash -c 'cat << "EOF" > /etc/systemd/system/powertop.service
 [Unit]
 Description=Powertop tunings
@@ -184,19 +185,19 @@ echo "[8/8] Instalando Software Adicional..."
 
 if [ -n "$BROWSER_PKG" ]; then
     echo " -> Instalando el navegador seleccionado ($BROWSER_PKG)..."
-    paru -S --needed "$BROWSER_PKG"
+    paru -S --noconfirm --needed "$BROWSER_PKG"
 fi
 
 echo " -> Instalando Steam usando pacman..."
-sudo pacman -S --needed steam
+sudo pacman -S --noconfirm --needed steam
 
 echo " -> Detectando GPU para instalar Bambu Studio..."
 if lspci | grep -q -i "nvidia"; then
     echo "    NVIDIA detectada. Instalando bambustudio-nvidia-bin..."
-    paru -S --needed bambustudio-nvidia-bin
+    paru -S --noconfirm --needed bambustudio-nvidia-bin
 else
     echo "    Gráfica AMD/Intel detectada. Instalando bambustudio-bin..."
-    paru -S --needed bambustudio-bin
+    paru -S --noconfirm --needed bambustudio-bin
 fi
 
 echo ""
