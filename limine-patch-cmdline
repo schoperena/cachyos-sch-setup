@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# =============================================================================
+# limine-patch-cmdline
+# Reinyecta parámetros de kernel personalizados en /boot/limine.conf
+# tras actualizaciones del sistema vía pacman hook.
+#
+# Instalación:
+#   sudo cp limine-patch-cmdline /usr/local/bin/limine-patch-cmdline
+#   sudo chmod +x /usr/local/bin/limine-patch-cmdline
+#   sudo cp limine-cmdline-patch.hook /etc/pacman.d/hooks/limine-cmdline-patch.hook
+# =============================================================================
+
+set -euo pipefail
+
+LIMINE_CONF="/boot/limine.conf"
+
+# Parámetros que deben estar siempre presentes en cada línea CMDLINE.
+# Agrega aquí cualquier otro parámetro que quieras proteger.
+REQUIRED_PARAMS=(
+    "usbcore.autosuspend=-1"
+    # "nvidia_drm.modeset=1"
+    # "amd_pstate=active"
+)
+
+[[ $EUID -ne 0 ]] && { echo "Ejecuta como root."; exit 1; }
+[[ ! -f "$LIMINE_CONF" ]] && { echo "No se encontró $LIMINE_CONF"; exit 1; }
+
+tmpfile=$(mktemp)
+modified=0
+
+while IFS= read -r line; do
+    if echo "$line" | grep -qiE '^\s*CMDLINE\s*='; then
+        for param in "${REQUIRED_PARAMS[@]}"; do
+            if ! echo "$line" | grep -qF "$param"; then
+                line="$line $param"
+                echo "[limine-patch] Agregado: '$param'"
+                modified=1
+            fi
+        done
+    fi
+    echo "$line"
+done < "$LIMINE_CONF" > "$tmpfile"
+
+if [[ $modified -eq 1 ]]; then
+    cp "$LIMINE_CONF" "${LIMINE_CONF}.bak"
+    mv "$tmpfile" "$LIMINE_CONF"
+    echo "[limine-patch] limine.conf actualizado. Backup en ${LIMINE_CONF}.bak"
+else
+    rm -f "$tmpfile"
+    echo "[limine-patch] Sin cambios necesarios."
+fi

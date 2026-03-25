@@ -85,6 +85,25 @@ lpr -P DCP-L2640DW /usr/share/cups/data/testprint
 
 ---
 
+## 🔧 4. Protección de parámetros de kernel en Limine
+
+Las actualizaciones de `limine` o del kernel regeneran `/boot/limine.conf` y pueden borrar parámetros personalizados de la línea `CMDLINE`. Esta solución instala un **hook de pacman** que reinyecta automáticamente los parámetros requeridos cada vez que eso ocurra.
+
+Por defecto protege `usbcore.autosuspend=-1`. Para agregar más parámetros, edita el array `REQUIRED_PARAMS` en `/usr/local/bin/limine-patch-cmdline`.
+
+### 🚀 Instalación
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/install-limine-patch.sh | sudo bash
+```
+
+El one-liner descarga e instala dos archivos:
+
+- `/usr/local/bin/limine-patch-cmdline` — script que parchea `limine.conf`
+- `/etc/pacman.d/hooks/limine-cmdline-patch.hook` — hook que lo dispara automáticamente al actualizar `limine`, `linux`, `linux-cachyos*` o `mkinitcpio`
+
+---
+
 ## ⚠️ Notas Post-Instalación
 
 1. **Reinicia la terminal:** tras ejecutar el *Setup Universal*, cierra Alacritty y vuelve a abrirlo para que la nueva fuente *Nerd Font* cargue correctamente en tu prompt de Fish.

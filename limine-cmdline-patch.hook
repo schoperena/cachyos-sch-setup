@@ -1,0 +1,15 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = limine
+Target = linux
+Target = linux-cachyos
+Target = linux-cachyos-bore
+Target = linux-cachyos-lto
+Target = mkinitcpio
+
+[Action]
+Description = Reinjecting custom kernel parameters into limine.conf...
+When = PostTransaction
+Exec = /usr/local/bin/limine-patch-cmdline
