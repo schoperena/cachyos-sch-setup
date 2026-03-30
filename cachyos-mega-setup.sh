@@ -47,7 +47,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_CFG="📋  CONFIGURACIÓN DEL SETUP"
   S_BRW_Q="¿Qué navegador web prefieres instalar?"; S_BRW_3="Ninguno / Mantener el actual"
   S_SEL="Selecciona"; S_DEF="default"
-  S_STM_Q="¿Instalar Steam (gaming)?"; S_BMB_Q="¿Instalar Bambu Studio (impresión 3D)?"
+  S_STM_Q="¿Instalar Steam (y meta-paquete gaming)?"; S_BMB_Q="¿Instalar Bambu Studio (impresión 3D)?"
   S_VSC_Q="¿Instalar Visual Studio Code?"
   S_IVC="Instalando Visual Studio Code"; S_VCD="IDE: Visual Studio Code instalado"
   S_PRT_Q="¿Instalar impresora Brother?"
@@ -60,7 +60,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_L_DE="Escritorio"; S_L_CPU="CPU"; S_L_BRW="Navegador"; S_L_PRT="Impresora"; S_L_VSC="VS Code"
   S_YES="Sí"; S_NO="No"; S_NOINST="No instalar"
   S_CONFIRM="¿Todo correcto? Enter para continuar o Ctrl+C para cancelar..."
-  S_YN="(s/N):"; S_YN_RE="^[Ss]$"; S_YN_Y="s"
+  S_YN="(s/N):"; S_YN_RE="^[Ss]$"; S_YN_Y="s"; S_ALR="Ya instalado"
   S_M1="⚙️  MÓDULO 1: Setup Base del Sistema"
   S_CLK="Ajustando el reloj local para Dual Boot"; S_CLK_D="Reloj sincronizado para Dual Boot"
   S_BASE="Instalando herramientas base, temas y Nerd Fonts"; S_BASE_D="Herramientas base instaladas/verificadas"
@@ -97,7 +97,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_PWD="-> auto-cpufreq y powertop habilitados"
   S_M4="📦  MÓDULO 4: Software Opcional"
   S_IBR="Instalando navegador"; S_BRD="Navegador instalado"; S_BRS="Navegador: Mantuvo el predeterminado"
-  S_IST="Instalando Steam"; S_STD="Gaming: Steam instalado"
+  S_IST="Instalando Steam y herramientas gaming"; S_STD="Gaming: Steam y utilidades instaladas"
   S_IBN="Instalando Bambu Studio (NVIDIA)"; S_IBA="Instalando Bambu Studio (Genérica)"
   S_BND="Impresión 3D: Bambu Studio (NVIDIA)"; S_BAD="Impresión 3D: Bambu Studio instalado"
   S_M5="🖨️  MÓDULO 5: Impresora Brother"
@@ -147,7 +147,7 @@ else
   S_CFG="📋  SETUP CONFIGURATION"
   S_BRW_Q="Which web browser do you prefer?"; S_BRW_3="None / Keep current"
   S_SEL="Select"; S_DEF="default"
-  S_STM_Q="Install Steam (gaming)?"; S_BMB_Q="Install Bambu Studio (3D printing)?"
+  S_STM_Q="Install Steam (and gaming meta-package)?"; S_BMB_Q="Install Bambu Studio (3D printing)?"
   S_VSC_Q="Install Visual Studio Code?"
   S_IVC="Installing Visual Studio Code"; S_VCD="IDE: Visual Studio Code installed"
   S_PRT_Q="Install Brother printer?"
@@ -160,7 +160,7 @@ else
   S_L_DE="Desktop"; S_L_CPU="CPU"; S_L_BRW="Browser"; S_L_PRT="Printer"
   S_YES="Yes"; S_NO="No"; S_NOINST="Don't install"
   S_CONFIRM="All correct? Press Enter to continue or Ctrl+C to cancel..."
-  S_YN="(y/N):"; S_YN_RE="^[Yy]$"; S_YN_Y="y"
+  S_YN="(y/N):"; S_YN_RE="^[Yy]$"; S_YN_Y="y"; S_ALR="Already installed"
   S_M1="⚙️  MODULE 1: Base System Setup"
   S_CLK="Adjusting local clock for Dual Boot"; S_CLK_D="Hardware clock synced for Dual Boot"
   S_BASE="Installing base tools, themes and Nerd Fonts"; S_BASE_D="Base tools installed/verified"
@@ -197,7 +197,7 @@ else
   S_PWD="-> auto-cpufreq and powertop enabled"
   S_M4="📦  MODULE 4: Optional Software"
   S_IBR="Installing browser"; S_BRD="Browser installed"; S_BRS="Browser: Kept default"
-  S_IST="Installing Steam"; S_STD="Gaming: Steam installed"
+  S_IST="Installing Steam and gaming tools"; S_STD="Gaming: Steam and utilities installed"
   S_IBN="Installing Bambu Studio (NVIDIA)"; S_IBA="Installing Bambu Studio (Generic)"
   S_BND="3D Printing: Bambu Studio (NVIDIA)"; S_BAD="3D Printing: Bambu Studio installed"
   S_M5="🖨️  MODULE 5: Brother Printer"
@@ -336,14 +336,45 @@ echo -e "${BOLD}${CYAN}╭──────────────────
 echo -e "${BOLD}${CYAN}│            ${S_CFG}                   │${NC}"
 echo -e "${BOLD}${CYAN}╰───────────────────────────────────────────────────────────╯${NC}"
 echo ""
-echo -e "${CYAN}1. ${S_BRW_Q}${NC}"; echo "   1) Google Chrome"; echo "   2) Brave Browser"; echo "   3) ${S_BRW_3}"
-read -p "   ${S_SEL} [1-3] (${S_DEF}: 3): " BROWSER_CHOICE </dev/tty
-BROWSER_CHOICE=${BROWSER_CHOICE:-3}; BROWSER_PKG=""
-case $BROWSER_CHOICE in 1) BROWSER_PKG="google-chrome";; 2) BROWSER_PKG="brave-bin";; esac; echo ""
+_M_BRW="$S_NOINST"
+_M_BRW_INST="n"
+if pacman -Qq google-chrome >/dev/null 2>&1; then _M_BRW="Google Chrome (${S_ALR})"; _M_BRW_INST="y"; fi
+if pacman -Qq brave-bin >/dev/null 2>&1; then _M_BRW="Brave Browser (${S_ALR})"; _M_BRW_INST="y"; fi
 
-echo -e "${CYAN}2. ${S_STM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_STEAM </dev/tty; INSTALL_STEAM=${INSTALL_STEAM:-n}; echo ""
-echo -e "${CYAN}3. ${S_BMB_Q}${NC}"; read -p "   ${S_YN} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-n}; echo ""
-echo -e "${CYAN}3b. ${S_VSC_Q}${NC}"; read -p "   ${S_YN} " INSTALL_VSCODE </dev/tty; INSTALL_VSCODE=${INSTALL_VSCODE:-n}; echo ""
+if [ "$_M_BRW_INST" = "y" ]; then
+    echo -e "${CYAN}1. ${S_BRW_Q}${NC} ${DIM}($_M_BRW)${NC}"
+    BROWSER_CHOICE=3; BROWSER_PKG=""; echo ""
+else
+    echo -e "${CYAN}1. ${S_BRW_Q}${NC}"; echo "   1) Google Chrome"; echo "   2) Brave Browser"; echo "   3) ${S_BRW_3}"
+    read -p "   ${S_SEL} [1-3] (${S_DEF}: 3): " BROWSER_CHOICE </dev/tty
+    BROWSER_CHOICE=${BROWSER_CHOICE:-3}; BROWSER_PKG=""
+    case $BROWSER_CHOICE in 1) BROWSER_PKG="google-chrome"; _M_BRW="$BROWSER_PKG";; 2) BROWSER_PKG="brave-bin"; _M_BRW="$BROWSER_PKG";; esac; echo ""
+fi
+
+if pacman -Qq steam >/dev/null 2>&1 || pacman -Qq cachyos-gaming-meta >/dev/null 2>&1; then
+    echo -e "${CYAN}2. ${S_STM_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    INSTALL_STEAM="n"; _M_STM="${S_ALR}"
+else
+    echo -e "${CYAN}2. ${S_STM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_STEAM </dev/tty; INSTALL_STEAM=${INSTALL_STEAM:-n}; echo ""
+    _M_STM=$([[ "$INSTALL_STEAM" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+fi
+
+if pacman -Qq bambustudio-bin bambustudio-nvidia-bin >/dev/null 2>&1; then
+    echo -e "${CYAN}3. ${S_BMB_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    INSTALL_BAMBU="n"; _M_BMB="${S_ALR}"
+else
+    echo -e "${CYAN}3. ${S_BMB_Q}${NC}"; read -p "   ${S_YN} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-n}; echo ""
+    _M_BMB=$([[ "$INSTALL_BAMBU" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+fi
+
+if pacman -Qq visual-studio-code-bin >/dev/null 2>&1; then
+    echo -e "${CYAN}3b. ${S_VSC_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    INSTALL_VSCODE="n"; _M_VSC="${S_ALR}"
+else
+    echo -e "${CYAN}3b. ${S_VSC_Q}${NC}"; read -p "   ${S_YN} " INSTALL_VSCODE </dev/tty; INSTALL_VSCODE=${INSTALL_VSCODE:-n}; echo ""
+    _M_VSC=$([[ "$INSTALL_VSCODE" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+fi
+
 echo -e "${CYAN}4. ${S_PRT_Q}${NC}"; read -p "   ${S_YN} " INSTALL_PRINTER </dev/tty; INSTALL_PRINTER=${INSTALL_PRINTER:-n}
 PRINTER_MODEL="DCP-L2640DW"; PRINTER_IP="10.0.2.220"
 if [[ "$INSTALL_PRINTER" =~ $S_YN_RE ]]; then
@@ -353,15 +384,33 @@ if [[ "$INSTALL_PRINTER" =~ $S_YN_RE ]]; then
     read -p "   ${S_PRT_IQ}: " INPUT_IP </dev/tty; PRINTER_IP=${INPUT_IP:-$PRINTER_IP}
 fi; echo ""
 
-echo -e "${CYAN}5. ${S_SB_Q}${NC}"; echo -e "${DIM}   ${S_SB_N}${NC}"
-read -p "   ${S_YN} " SIGN_BOOTLOADER </dev/tty; SIGN_BOOTLOADER=${SIGN_BOOTLOADER:-n}; echo ""
+if pacman -Qq sbctl >/dev/null 2>&1; then
+    echo -e "${CYAN}5. ${S_SB_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    SIGN_BOOTLOADER="n"; _M_SB="${S_ALR}"
+else
+    echo -e "${CYAN}5. ${S_SB_Q}${NC}"; echo -e "${DIM}   ${S_SB_N}${NC}"
+    read -p "   ${S_YN} " SIGN_BOOTLOADER </dev/tty; SIGN_BOOTLOADER=${SIGN_BOOTLOADER:-n}; echo ""
+    _M_SB=$([[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+fi
 
-echo -e "${CYAN}6. ${S_LM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_LIMINE_PATCH </dev/tty; INSTALL_LIMINE_PATCH=${INSTALL_LIMINE_PATCH:-n}; echo ""
+if [ -f "/usr/local/bin/limine-patch-cmdline" ]; then
+    echo -e "${CYAN}6. ${S_LM_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    INSTALL_LIMINE_PATCH="n"; _M_LM="${S_ALR}"
+else
+    echo -e "${CYAN}6. ${S_LM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_LIMINE_PATCH </dev/tty; INSTALL_LIMINE_PATCH=${INSTALL_LIMINE_PATCH:-n}; echo ""
+    _M_LM=$([[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+fi
 
-INSTALL_TAILSCALE_EXT="n"
+INSTALL_TAILSCALE_EXT="n"; _M_TS="$S_NO"
 if [ "$DESKTOP_ENV" = "gnome" ]; then
-    echo -e "${CYAN}7. ${S_TS_Q}${NC}"; echo -e "${DIM}   ${S_TS_N}${NC}"
-    read -p "   ${S_YN} " INSTALL_TAILSCALE_EXT </dev/tty; INSTALL_TAILSCALE_EXT=${INSTALL_TAILSCALE_EXT:-n}; echo ""
+    if gnome-extensions list 2>/dev/null | grep -q "tailscale-status"; then
+        echo -e "${CYAN}7. ${S_TS_Q}${NC} ${DIM}(${S_ALR})${NC}"
+        INSTALL_TAILSCALE_EXT="n"; _M_TS="${S_ALR}"
+    else
+        echo -e "${CYAN}7. ${S_TS_Q}${NC}"; echo -e "${DIM}   ${S_TS_N}${NC}"
+        read -p "   ${S_YN} " INSTALL_TAILSCALE_EXT </dev/tty; INSTALL_TAILSCALE_EXT=${INSTALL_TAILSCALE_EXT:-n}; echo ""
+        _M_TS=$([[ "$INSTALL_TAILSCALE_EXT" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+    fi
 fi
 
 # Summary
@@ -370,14 +419,14 @@ echo -e "${BOLD}${GREEN}│           ${S_SUM}                       │${NC}"
 echo -e "${BOLD}${GREEN}╰───────────────────────────────────────────────────────────╯${NC}"
 echo -e "   ${S_L_DE}:        ${BOLD}${DESKTOP_ENV^^}${NC}"
 echo -e "   ${S_L_CPU}:           ${BOLD}${CPU_VENDOR^^}${NC} $($CPU_IS_HYBRID && echo "(${S_HYBRID})")"
-echo -e "   ${S_L_BRW}:       $([ -n "$BROWSER_PKG" ] && echo "$BROWSER_PKG" || echo "$S_NOINST")"
-echo -e "   Steam:          $([[ "$INSTALL_STEAM" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")"
-echo -e "   Bambu Studio:   $([[ "$INSTALL_BAMBU" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")"
-echo -e "   VS Code:        $([[ "$INSTALL_VSCODE" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")"
+echo -e "   ${S_L_BRW}:       $_M_BRW"
+echo -e "   Steam:          $_M_STM"
+echo -e "   Bambu Studio:   $_M_BMB"
+echo -e "   VS Code:        $_M_VSC"
 echo -e "   ${S_L_PRT}:       $([[ "$INSTALL_PRINTER" =~ $S_YN_RE ]] && echo "$PRINTER_MODEL @ $PRINTER_IP" || echo "$S_NO")"
-echo -e "   Secure Boot:    $([[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")"
-echo -e "   Limine Patch:   $([[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")"
-[ "$DESKTOP_ENV" = "gnome" ] && echo -e "   Tailscale:      $([[ "$INSTALL_TAILSCALE_EXT" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")"
+echo -e "   Secure Boot:    $_M_SB"
+echo -e "   Limine Patch:   $_M_LM"
+[ "$DESKTOP_ENV" = "gnome" ] && echo -e "   Tailscale:      $_M_TS"
 echo ""; read -p "${S_CONFIRM} " </dev/tty; echo ""
 
 # --- Module-only mode: ask module-specific questions ---
@@ -387,12 +436,35 @@ elif [ "$RUN_MODULE" = "printer" ]; then
     echo -e "${DIM}   ${S_PRT_ID}: ${PRINTER_IP}${NC}"
     read -p "   ${S_PRT_IQ}: " INPUT_IP </dev/tty; PRINTER_IP=${INPUT_IP:-$PRINTER_IP}
 elif [ "$RUN_MODULE" = "software" ]; then
-    echo -e "${CYAN}1. ${S_BRW_Q}${NC}"; echo "   1) Google Chrome"; echo "   2) Brave Browser"; echo "   3) ${S_BRW_3}"
-    read -p "   ${S_SEL} [1-3] (${S_DEF}: 3): " BROWSER_CHOICE </dev/tty; BROWSER_CHOICE=${BROWSER_CHOICE:-3}
-    case $BROWSER_CHOICE in 1) BROWSER_PKG="google-chrome";; 2) BROWSER_PKG="brave-bin";; esac
-    echo -e "${CYAN}${S_STM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_STEAM </dev/tty; INSTALL_STEAM=${INSTALL_STEAM:-n}
-    echo -e "${CYAN}${S_BMB_Q}${NC}"; read -p "   ${S_YN} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-n}
-    echo -e "${CYAN}${S_VSC_Q}${NC}"; read -p "   ${S_YN} " INSTALL_VSCODE </dev/tty; INSTALL_VSCODE=${INSTALL_VSCODE:-n}
+    _M_BRW_INST="n"
+    if pacman -Qq google-chrome >/dev/null 2>&1 || pacman -Qq brave-bin >/dev/null 2>&1; then _M_BRW_INST="y"; fi
+
+    if [ "$_M_BRW_INST" = "y" ]; then
+        echo -e "${CYAN}1. ${S_BRW_Q}${NC} ${DIM}(${S_ALR})${NC}"
+        BROWSER_CHOICE=3; BROWSER_PKG=""
+    else
+        echo -e "${CYAN}1. ${S_BRW_Q}${NC}"; echo "   1) Google Chrome"; echo "   2) Brave Browser"; echo "   3) ${S_BRW_3}"
+        read -p "   ${S_SEL} [1-3] (${S_DEF}: 3): " BROWSER_CHOICE </dev/tty; BROWSER_CHOICE=${BROWSER_CHOICE:-3}
+        case $BROWSER_CHOICE in 1) BROWSER_PKG="google-chrome";; 2) BROWSER_PKG="brave-bin";; esac
+    fi
+
+    if pacman -Qq steam >/dev/null 2>&1 || pacman -Qq cachyos-gaming-meta >/dev/null 2>&1; then
+        echo -e "${CYAN}${S_STM_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_STEAM="n"
+    else
+        echo -e "${CYAN}${S_STM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_STEAM </dev/tty; INSTALL_STEAM=${INSTALL_STEAM:-n}
+    fi
+    
+    if pacman -Qq bambustudio-bin bambustudio-nvidia-bin >/dev/null 2>&1; then
+        echo -e "${CYAN}${S_BMB_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_BAMBU="n"
+    else
+        echo -e "${CYAN}${S_BMB_Q}${NC}"; read -p "   ${S_YN} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-n}
+    fi
+
+    if pacman -Qq visual-studio-code-bin >/dev/null 2>&1; then
+        echo -e "${CYAN}${S_VSC_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_VSCODE="n"
+    else
+        echo -e "${CYAN}${S_VSC_Q}${NC}"; read -p "   ${S_YN} " INSTALL_VSCODE </dev/tty; INSTALL_VSCODE=${INSTALL_VSCODE:-n}
+    fi
 fi  # end menu
 # =============================================================================
 #  MODULES 1-7: Execution
@@ -606,7 +678,7 @@ echo -e "${GREEN}  ${S_M4}${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"; echo ""
 if [ -n "$BROWSER_PKG" ]; then run_task "${S_IBR} ($BROWSER_PKG)" smart_install paru "$BROWSER_PKG"; SUMMARY+=("${S_BRD}: $BROWSER_PKG")
 else SUMMARY+=("$S_BRS"); fi
-if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then run_task "$S_IST" smart_install pacman steam; SUMMARY+=("$S_STD"); fi
+if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then run_task "$S_IST" smart_install pacman cachyos-gaming-meta; SUMMARY+=("$S_STD"); fi
 if [[ "$INSTALL_BAMBU" =~ $S_YN_RE ]]; then
     if lspci | grep -q -i "nvidia"; then run_task "$S_IBN" smart_install paru bambustudio-nvidia-bin; SUMMARY+=("$S_BND")
     else run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD"); fi
