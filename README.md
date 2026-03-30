@@ -1,113 +1,124 @@
-# 🟢 CachyOS SCH Setup & Secure Boot
+# 🟢 CachyOS SCH Setup — Mega Installer
 
-Este repositorio contiene scripts de post-instalación y configuración automatizada para **CachyOS (GNOME)**. Diseñados para configurar un entorno de desarrollo estéticamente unificado (Cyberpunk/Verde), optimizar el hardware inteligentemente y configurar el Arranque Seguro (Secure Boot) para Dual Boot con Windows sin fricciones.
+Automated post-installation and configuration scripts for **CachyOS (GNOME / KDE)**. One script to rule them all — sets up a unified workstation with a green dark aesthetic, hardware optimization, GNOME extensions, Secure Boot, and more.
 
----
-
-## 🛠️ 1. Setup Universal (Personalización y Hardware)
-
-El script principal transforma una instalación limpia de CachyOS en una estación de trabajo lista para usar, detectando tu hardware para aplicar los ajustes exactos que necesitas (PC de Escritorio vs. Portátil).
-
-### Características
-
-- **Detección de hardware inteligente:** detecta si usas batería e instala utilidades (`auto-cpufreq`, `powertop`) y aceleración de video (`intel-media-driver` o `mesa-vdpau`) según tu CPU.
-- **Soporte GPU / Optimus:** configura `envycontrol` automáticamente en portátiles con NVIDIA. Instala la versión de Bambu Studio adecuada (NVIDIA o genérica).
-- **Terminal Hacker-Chic:** instala y configura **Alacritty** + **Zellij** + **Fish Shell** (con el tema bobthefish y Fastfetch), todo unificado en una paleta de colores verde oscuro.
-- **Tema Orchis Green:** aplica el tema Orchis oscuro con acentos verdes en GNOME (incluyendo Libadwaita/GTK4) y el pack de iconos Tela Circle.
-- **Corrección Dual Boot:** sincroniza el reloj del sistema (RTC a hora local) para evitar desajustes al cambiar a Windows.
-
-### 🚀 Instalación
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/cachyos-sch-setup.sh | bash
-```
+> **Language:** Supports **English** (default) and **Spanish**. You'll be prompted at the start.
+>
+> **Idempotent:** Safe to re-run — detects already installed packages and skips them.
 
 ---
 
-## 🔒 2. Configuración de Secure Boot (sbctl + Limine)
-
-Script interactivo diseñado para firmar tu sistema CachyOS y permitir un Dual Boot seguro con Windows sin romper las firmas de Microsoft.
-
-### Características
-
-- **Comprobación de entorno:** verifica que el sistema esté en modo UEFI y comprueba la existencia de `sbctl` (instalándolo si es necesario).
-- **Detección de Setup Mode:** comprueba si has borrado las llaves de fábrica en tu BIOS. Si no lo has hecho, te guía paso a paso e incluso te ofrece reiniciar directamente a la BIOS para hacerlo.
-- **Inscripción segura:** crea llaves locales y las inscribe manteniendo la compatibilidad obligatoria con Microsoft (`--microsoft`).
-- **Firma automática:** utiliza `limine-enroll-config` para firmar automáticamente el gestor de arranque de CachyOS.
-
-### 🚀 Ejecución
+## 🚀 Quick Start (Full Interactive Setup)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/secure-boot-cachyos-sch.sh | bash
+curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/cachyos-mega-setup.sh | bash
 ```
+
+## 🔧 Run Individual Modules
+
+You can also run specific modules independently:
+
+```bash
+# Download the script first
+curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/cachyos-mega-setup.sh -o cachyos-mega-setup.sh
+chmod +x cachyos-mega-setup.sh
+
+# Run individual modules
+./cachyos-mega-setup.sh base         # Terminal, themes, fonts, Fish, OMF
+./cachyos-mega-setup.sh desktop      # GNOME/KDE customization and extensions
+./cachyos-mega-setup.sh hardware     # CPU/GPU optimization & power management
+./cachyos-mega-setup.sh software     # Browser, Steam, Bambu Studio, VS Code
+./cachyos-mega-setup.sh printer      # Brother printer installation
+./cachyos-mega-setup.sh secureboot   # Secure Boot signing with sbctl
+./cachyos-mega-setup.sh limine       # Limine kernel cmdline patch
+./cachyos-mega-setup.sh --help       # Show all available modules
+```
+
+### One-Liners for Individual Modules
+
+| Module | One-liner |
+|---|---|
+| Secure Boot | `curl -fsSL .../cachyos-mega-setup.sh \| bash -s secureboot` |
+| Limine Patch | `curl -fsSL .../cachyos-mega-setup.sh \| bash -s limine` |
+| Brother Printer | `curl -fsSL .../cachyos-mega-setup.sh \| bash -s printer` |
+| Hardware Only | `curl -fsSL .../cachyos-mega-setup.sh \| bash -s hardware` |
+
+*(Replace `...` with `https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main`)*
 
 ---
 
-## 🖨️ 3. Instalación de Impresora Brother DCP-L2640DW
+## What Each Module Does
 
-Script de instalación automática para la impresora/escáner Brother DCP-L2640DW en Arch Linux y sus derivados (CachyOS, Manjaro, etc.). Gestiona todas las dependencias, descarga los drivers oficiales de Brother y configura tanto la impresión vía CUPS como el escáner vía SANE.
+### Module 1: `base` — Base System Setup
 
-### Características
+- **Dual Boot clock fix** — Syncs hardware clock for Windows compatibility
+- **Terminal stack** — Alacritty + Zellij + Fish Shell + Oh My Fish + bobthefish + Fastfetch
+- **Nerd Fonts** — MesloLGS Nerd Font for terminal icons
+- **Catppuccin green theme** — Unified dark green palette across tools
+- ✅ Detects OMF and bobthefish if already installed
 
-- **Detección de distribución:** soporta Arch Linux / derivados (pacman) y Debian / Ubuntu (apt).
-- **Multilib automático:** habilita el repositorio `[multilib]` en `pacman.conf` si no está activo, necesario para el driver `i386`.
-- **Dependencias completas:** instala `cups`, `dpkg`, `curl`, `wget`, `sane` y `lib32-glibc` según lo que falte.
-- **Driver oficial:** descarga e instala `dcpl2640dwpdrv` y `brscan5` directamente desde los servidores de Brother.
-- **Configuración de escáner:** registra el dispositivo en `brsaneconfig5` por IP.
-- **No interactivo:** todas las respuestas al instalador de Brother se pasan automáticamente por stdin.
+### Module 2: `desktop` — Desktop Customization (Auto-Detects GNOME / KDE)
 
-### Requisitos previos
+**GNOME:**
+- Orchis-Green-Dark GTK theme (including GTK4/Libadwaita)
+- Tela-circle-green-dark icon pack
+- GNOME Browser Connector for web-based extension management
+- **10 Extensions auto-installed and enabled:**
+  - User Themes, Places Menu, Drive Menu, System Monitor (from `gnome-shell-extensions`)
+  - Caffeine (from repos), Dash to Dock (from AUR)
+  - Extension List, Tiling Assistant, Transparent Top Bar (from extensions.gnome.org)
+  - Tailscale Status (optional)
 
-- La impresora debe estar conectada a la red y accesible por IP.
-- Edita la variable `PRINTER_IP` al inicio del script si tu impresora usa una IP distinta a `10.0.2.220`.
+**KDE Plasma:**
+- Orchis KDE theme + Kvantum engine
+- Custom "SchoperenaGreen" color scheme
+- Tela-circle-green-dark icon pack
 
-### 🚀 Instalación
+### Module 3: `hardware` — Hardware Optimization
 
-Descarga el script y ejecuta como root:
+| CPU | Action |
+|---|---|
+| Intel (any) | `intel-media-driver` + `libva-intel-driver` for VA-API |
+| Intel 12th gen+ (hybrid) | + `thermald` for P-core/E-core thermal management |
+| AMD | Verifies `mesa` (VA-API included since mesa absorbed the old packages) |
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/install-brother-dcp-l2640dw.sh -o install-brother-dcp-l2640dw.sh
-chmod +x install-brother-dcp-l2640dw.sh
-sudo ./install-brother-dcp-l2640dw.sh
-```
+**Laptop (battery detected):**
+- `auto-cpufreq` + `powertop` for power saving
+- **Masks** `power-profiles-daemon` (prevents GNOME/KDE from restarting it)
+- `envycontrol` for NVIDIA Optimus laptops
 
-O directamente:
+### Module 4: `software` — Optional Software (All Optional)
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/install-brother-dcp-l2640dw.sh | sudo bash
-```
+All packages are asked before installation:
+- 🌐 Browser (Google Chrome / Brave)
+- 🎮 Steam
+- 🖨️ Bambu Studio (auto-detects NVIDIA)
+- 💻 Visual Studio Code
 
-Tras la instalación, imprime una página de prueba con:
+### Module 5: `printer` — Brother Printer
 
-```bash
-lpr -P DCP-L2640DW /usr/share/cups/data/testprint
-```
+- Asks for model and IP (defaults: DCP-L2640DW / 10.0.2.220)
+- Enables multilib, CUPS, downloads official Brother installer
+- Registers scanner via `brsaneconfig5`
+
+### Module 6: `secureboot` — Secure Boot
+
+- Verifies UEFI mode and Setup Mode
+- `sbctl` keys → `--microsoft` enrollment → Limine signing
+- Guided instructions if Setup Mode not active
+
+### Module 7: `limine` — Limine Cmdline Patch
+
+- Pacman hook to protect custom kernel parameters across updates
+- Default: `usbcore.autosuspend=-1`
 
 ---
 
-## 🔧 4. Protección de parámetros de kernel en Limine
+## ⚠️ Post-Installation Notes
 
-Las actualizaciones de `limine` o del kernel regeneran `/boot/limine.conf` y pueden borrar parámetros personalizados de la línea `CMDLINE`. Esta solución instala un **hook de pacman** que reinyecta automáticamente los parámetros requeridos cada vez que eso ocurra.
-
-Por defecto protege `usbcore.autosuspend=-1`. Para agregar más parámetros, edita el array `REQUIRED_PARAMS` en `/usr/local/bin/limine-patch-cmdline`.
-
-### 🚀 Instalación
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main/install-limine-patch.sh | sudo bash
-```
-
-El one-liner descarga e instala dos archivos:
-
-- `/usr/local/bin/limine-patch-cmdline` — script que parchea `limine.conf`
-- `/etc/pacman.d/hooks/limine-cmdline-patch.hook` — hook que lo dispara automáticamente al actualizar `limine`, `linux`, `linux-cachyos*` o `mkinitcpio`
-
----
-
-## ⚠️ Notas Post-Instalación
-
-1. **Reinicia la terminal:** tras ejecutar el *Setup Universal*, cierra Alacritty y vuelve a abrirlo para que la nueva fuente *Nerd Font* cargue correctamente en tu prompt de Fish.
-2. **GNOME Shell:** abre la aplicación **Extensiones** de GNOME y activa **User Themes** para que la barra superior del escritorio aplique el tema verde.
-3. **Portátiles con NVIDIA:** si el script instaló EnvyControl, ejecuta `sudo envycontrol -s integrated` y reinicia cuando necesites maximizar la autonomía de batería.
-4. **BitLocker en Windows:** *antes* de usar el script de Secure Boot, suspende BitLocker en Windows o ten a mano tu clave de recuperación de 48 dígitos.
-5. **Grupo `lp` (impresora):** tras ejecutar el script de Brother, cierra sesión y vuelve a entrar para que la pertenencia al grupo `lp` surta efecto.
+1. **Restart terminal** — Close and reopen for Nerd Font to load in Fish
+2. **GNOME** — Open **Extensions** app, enable **User Themes** for top bar theme
+3. **KDE** — Open **Kvantum Manager**, select `Orchis-dark`. Enable **Blur** in Desktop Effects
+4. **NVIDIA laptops** — `sudo envycontrol -s integrated` + reboot for max battery
+5. **BitLocker** — Suspend BitLocker in Windows before Secure Boot signing
+6. **Printer** — Log out/in after setup for `lp` group to take effect
