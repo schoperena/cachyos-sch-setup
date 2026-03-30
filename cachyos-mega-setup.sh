@@ -55,6 +55,8 @@ if [ "$LANG_SEL" = "es" ]; then
   S_PRT_ID="IP por defecto"; S_PRT_IQ="IP de la impresora (Enter para default)"
   S_SB_Q="¿Firmar el bootloader (Secure Boot)?"; S_SB_N="Requiere haber borrado las llaves de fábrica en BIOS."
   S_LM_Q="¿Instalar el parche de Limine (protege parámetros de kernel)?"
+  S_LM_U="¿Actualizar parche de Limine?"
+  S_UPD="Actualización disponible"
   S_TS_Q="¿Instalar la extensión Tailscale Status para GNOME?"; S_TS_N="Gestionar conexiones Tailscale desde el escritorio."
   S_SUM="✅  RESUMEN DE SELECCIÓN"
   S_L_DE="Escritorio"; S_L_CPU="CPU"; S_L_BRW="Navegador"; S_L_PRT="Impresora"; S_L_VSC="VS Code"
@@ -136,7 +138,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_K3="En Configuración > Apariencia > Colores, selecciona SchoperenaGreen."
   S_K4="Activa Desenfoque en Efectos del Escritorio."
   S_CMP="¡Mega Setup v2 completado! 🎉"; S_CLT="Cierra esta terminal y abre una nueva."
-  S_DON="completado."; S_FAI="falló. Revisa /tmp/setup_cachyos_schoperena.log"
+  S_DON="completado."; S_FAI="falló. Revisa ~/cachyos-setup-debug.log"
   S_GDF="No se detectó la versión de GNOME Shell."
   S_ENF="Extensión no encontrada para GNOME"; S_ENU="Sin URL de descarga para"
 else
@@ -155,6 +157,8 @@ else
   S_PRT_ID="Default IP"; S_PRT_IQ="Printer IP (Enter for default)"
   S_SB_Q="Sign bootloader (Secure Boot)?"; S_SB_N="Requires factory keys cleared in BIOS."
   S_LM_Q="Install Limine patch (protects kernel parameters)?"
+  S_LM_U="Update Limine patch?"
+  S_UPD="Update available"
   S_TS_Q="Install Tailscale Status extension for GNOME?"; S_TS_N="Manage Tailscale connections from desktop."
   S_SUM="✅  SELECTION SUMMARY"
   S_L_DE="Desktop"; S_L_CPU="CPU"; S_L_BRW="Browser"; S_L_PRT="Printer"
@@ -236,7 +240,7 @@ else
   S_K3="In System Settings > Appearance > Colors, select SchoperenaGreen."
   S_K4="Enable Blur in Desktop Effects for transparency."
   S_CMP="Mega Setup v2 completed successfully! 🎉"; S_CLT="Close this terminal and open a new one."
-  S_DON="completed."; S_FAI="failed. Check /tmp/setup_cachyos_schoperena.log"
+  S_DON="completed."; S_FAI="failed. Check ~/cachyos-setup-debug.log"
   S_GDF="Could not detect GNOME Shell version."
   S_ENF="Extension not found for GNOME"; S_ENU="No download URL for"
 fi
@@ -245,21 +249,38 @@ fi
 load_strings  # Default English
 
 # === Core Functions ===
+LOG_FILE="$HOME/cachyos-setup-debug.log"
+> "$LOG_FILE" # Inicializar y limpiar el log
+
 run_task() {
     local text="$1"; shift
-    "$@" > /tmp/setup_cachyos_schoperena.log 2>&1 &
+    echo -e "\n=============================================" >> "$LOG_FILE"
+    echo "Task: $text" >> "$LOG_FILE"
+    echo "Command: $@" >> "$LOG_FILE"
+    echo "=============================================" >> "$LOG_FILE"
+    
+    "$@" >> "$LOG_FILE" 2>&1 &
     local pid=$!; local delay=0.1; local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     while kill -0 $pid 2>/dev/null; do
         local temp=${spinstr#?}; printf "\r${CYAN}[%c] %s...${NC}" "$spinstr" "$text"
         local spinstr=$temp${spinstr%"$temp"}; sleep $delay
     done
     wait $pid; local ec=$?
-    [ $ec -eq 0 ] && printf "\r${GREEN}[✔] %s ${S_DON}${NC}\033[K\n" "$text" || printf "\r${RED}[✖] %s ${S_FAI}${NC}\033[K\n" "$text"
+    if [ $ec -eq 0 ]; then
+        printf "\r${GREEN}[✔] %s ${S_DON}${NC}\033[K\n" "$text"
+    else
+        printf "\r${RED}[✖] %s ${S_FAI}${NC}\033[K\n" "$text"
+        echo "FAILED WITH EXIT CODE $ec" >> "$LOG_FILE"
+    fi
     return $ec
 }
 smart_install() {
     local tool="$1"; shift; local m=()
-    for p in "$@"; do pacman -Qq "$p" >/dev/null 2>&1 || m+=("$p"); done
+    for p in "$@"; do
+        if pacman -Qq "$p" >/dev/null 2>&1; then continue; fi
+        if [[ "$p" == "tela-circle-icon-theme"* ]] && pacman -Qq | grep -q "^tela-circle-icon-theme"; then continue; fi
+        m+=("$p")
+    done
     [ ${#m[@]} -eq 0 ] && return 0
     [ "$tool" = "paru" ] && paru -S --noconfirm --needed "${m[@]}" || sudo pacman -S --noconfirm --needed "${m[@]}"
 }
@@ -296,9 +317,9 @@ detect_cpu() {
 }
 detect_gpu() {
     GPU_VENDOR="unknown"
-    if lspci | grep -qi "nvidia"; then GPU_VENDOR="nvidia"
-    elif lspci | grep -qi "vga.*amd"; then GPU_VENDOR="amd"
-    elif lspci | grep -qi "vga.*intel"; then GPU_VENDOR="intel"
+    if lspci | grep -iE 'vga|3d|display' | grep -qi "nvidia"; then GPU_VENDOR="nvidia"
+    elif lspci | grep -iE 'vga|3d|display' | grep -qi "amd"; then GPU_VENDOR="amd"
+    elif lspci | grep -iE 'vga|3d|display' | grep -qi "intel"; then GPU_VENDOR="intel"
     fi
 }
 detect_desktop; detect_cpu; detect_gpu
@@ -402,8 +423,20 @@ else
 fi
 
 if [ -f "/usr/local/bin/limine-patch-cmdline" ]; then
-    echo -e "${CYAN}6. ${S_LM_Q}${NC} ${DIM}(${S_ALR})${NC}"
-    INSTALL_LIMINE_PATCH="n"; _M_LM="${S_ALR}"
+    TMP_LM=$(mktemp)
+    BASE_URL="https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main"
+    FETCH_OK=false
+    curl -fsSL -m 3 "$BASE_URL/limine-patch-cmdline" -o "$TMP_LM" && FETCH_OK=true
+
+    if $FETCH_OK && ! cmp -s "$TMP_LM" /usr/local/bin/limine-patch-cmdline; then
+        echo -e "${CYAN}6. ${S_LM_U}${NC} ${DIM}(${S_UPD})${NC}"
+        read -p "   ${S_YN} " INSTALL_LIMINE_PATCH </dev/tty; INSTALL_LIMINE_PATCH=${INSTALL_LIMINE_PATCH:-n}; echo ""
+        _M_LM=$([[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+    else
+        echo -e "${CYAN}6. ${S_LM_Q}${NC} ${DIM}(${S_ALR})${NC}"
+        INSTALL_LIMINE_PATCH="n"; _M_LM="${S_ALR}"
+    fi
+    rm -f "$TMP_LM"
 else
     echo -e "${CYAN}6. ${S_LM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_LIMINE_PATCH </dev/tty; INSTALL_LIMINE_PATCH=${INSTALL_LIMINE_PATCH:-n}; echo ""
     _M_LM=$([[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
@@ -655,7 +688,15 @@ if [ "$CPU_VENDOR" = "intel" ]; then
 elif [ "$CPU_VENDOR" = "amd" ]; then
     run_task "$S_AVA" smart_install pacman mesa; SUMMARY+=("$S_AVD")
 fi
-IS_LAPTOP=false; ls /sys/class/power_supply/ 2>/dev/null | grep -q -i "BAT" && IS_LAPTOP=true
+IS_LAPTOP=false
+if [ -d /sys/class/power_supply ]; then
+    for supply in /sys/class/power_supply/*; do
+        if [ -e "$supply/type" ] && grep -qi "Battery" "$supply/type"; then
+            IS_LAPTOP=true
+            break
+        fi
+    done
+fi
 if $IS_LAPTOP; then
     SUMMARY+=("$S_LAP"); run_task "$S_PWR" smart_install paru auto-cpufreq powertop
     if [ "$GPU_VENDOR" = "nvidia" ]; then
