@@ -18,9 +18,23 @@ LIMINE_CONF="/boot/limine.conf"
 # Agrega aquí cualquier otro parámetro que quieras proteger.
 REQUIRED_PARAMS=(
     "usbcore.autosuspend=-1"
-    # "nvidia_drm.modeset=1"
-    # "amd_pstate=active"
 )
+
+# Auto-detect hardware for GPU-specific parameters
+if lspci | grep -qi "nvidia"; then
+    echo "[limine-patch] NVIDIA GPU detected. Adding nvidia_drm optimizations."
+    REQUIRED_PARAMS+=(
+        "nvidia_drm.modeset=1"
+        "nvidia_drm.fbdev=1"
+    )
+fi
+
+if lspci | grep -qi "vga.*amd"; then
+    echo "[limine-patch] AMD GPU detected. Adding amd_pstate parameter."
+    REQUIRED_PARAMS+=(
+        "amd_pstate=active"
+    )
+fi
 
 [[ $EUID -ne 0 ]] && { echo "Ejecuta como root."; exit 1; }
 [[ ! -f "$LIMINE_CONF" ]] && { echo "No se encontró $LIMINE_CONF"; exit 1; }

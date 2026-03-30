@@ -76,11 +76,12 @@ chmod +x cachyos-mega-setup.sh
 
 ### Module 3: `hardware` — Hardware Optimization
 
-| CPU | Action |
+| Hardware | Action |
 |---|---|
-| Intel (any) | `intel-media-driver` + `libva-intel-driver` for VA-API |
-| Intel 12th gen+ (hybrid) | + `thermald` for P-core/E-core thermal management |
-| AMD | Verifies `mesa` (VA-API included since mesa absorbed the old packages) |
+| Intel CPU | `intel-media-driver` + `libva-intel-driver` for VA-API |
+| Intel 12th gen+ | + `thermald` for P-core/E-core thermal management |
+| AMD CPU | Verifies `mesa` (VA-API included since mesa absorbed the old packages) |
+| NVIDIA GPU | Uses NVIDIA-specific builds, allows envycontrol on laptops |
 
 **Laptop (battery detected):**
 - `auto-cpufreq` + `powertop` for power saving
@@ -110,7 +111,9 @@ All packages are asked before installation:
 ### Module 7: `limine` — Limine Cmdline Patch
 
 - Pacman hook to protect custom kernel parameters across updates
-- Default: `usbcore.autosuspend=-1`
+- Base default: `usbcore.autosuspend=-1`
+- **NVIDIA GPUs**: Auto-detects and adds `nvidia_drm.modeset=1` and `nvidia_drm.fbdev=1`.
+- **AMD GPUs**: Auto-detects and adds `amd_pstate=active`.
 
 ---
 

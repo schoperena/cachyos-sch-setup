@@ -42,7 +42,7 @@ load_strings() {
 if [ "$LANG_SEL" = "es" ]; then
   S_LANG_Q="Selecciona idioma / Select language:"; S_LANG_1="1) English"; S_LANG_2="2) Español"
   S_BANNER_SUB="Instalador unificado de todo el sistema"
-  S_DET_DE="Escritorio detectado"; S_DET_CPU="CPU detectado"; S_ARCH_L="Arquitectura"; S_HYBRID="Híbrida (P-core / E-core)"
+  S_DET_DE="Escritorio detectado"; S_DET_CPU="CPU detectada"; S_DET_GPU="GPU detectada"; S_ARCH_L="Arquitectura"; S_HYBRID="Híbrida (P-core / E-core)"
   S_SUDO="[!] Ingresa tu contraseña para autorizar la instalación:"
   S_CFG="📋  CONFIGURACIÓN DEL SETUP"
   S_BRW_Q="¿Qué navegador web prefieres instalar?"; S_BRW_3="Ninguno / Mantener el actual"
@@ -142,7 +142,7 @@ if [ "$LANG_SEL" = "es" ]; then
 else
   S_LANG_Q="Select language / Selecciona idioma:"; S_LANG_1="1) English"; S_LANG_2="2) Español"
   S_BANNER_SUB="Unified system installer"
-  S_DET_DE="Desktop detected"; S_DET_CPU="CPU detected"; S_ARCH_L="Architecture"; S_HYBRID="Hybrid (P-core / E-core)"
+  S_DET_DE="Desktop detected"; S_DET_CPU="CPU detected"; S_DET_GPU="GPU detected"; S_ARCH_L="Architecture"; S_HYBRID="Hybrid (P-core / E-core)"
   S_SUDO="[!] Please enter your password to authorize the installation:"
   S_CFG="📋  SETUP CONFIGURATION"
   S_BRW_Q="Which web browser do you prefer?"; S_BRW_3="None / Keep current"
@@ -294,7 +294,14 @@ detect_cpu() {
         CPU_VENDOR="amd"; CPU_MODEL_NAME=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | xargs)
     fi
 }
-detect_desktop; detect_cpu
+detect_gpu() {
+    GPU_VENDOR="unknown"
+    if lspci | grep -qi "nvidia"; then GPU_VENDOR="nvidia"
+    elif lspci | grep -qi "vga.*amd"; then GPU_VENDOR="amd"
+    elif lspci | grep -qi "vga.*intel"; then GPU_VENDOR="intel"
+    fi
+}
+detect_desktop; detect_cpu; detect_gpu
 
 # === Language Selection + Banner ===
 clear; echo ""
@@ -313,6 +320,7 @@ echo -e "${GREEN}╚════════════════════
 echo -e "${DIM}  ${S_DET_DE}: ${BOLD}${DESKTOP_ENV^^}${NC}"
 echo -e "${DIM}  ${S_DET_CPU}: ${BOLD}${CPU_MODEL_NAME:-Unknown}${NC}"
 $CPU_IS_HYBRID && echo -e "${DIM}  ${S_ARCH_L}: ${BOLD}${S_HYBRID}${NC}"
+echo -e "${DIM}  ${S_DET_GPU}: ${BOLD}${GPU_VENDOR^^}${NC}"
 echo ""
 
 # === Sudo ===
@@ -359,7 +367,7 @@ else
     _M_STM=$([[ "$INSTALL_STEAM" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 fi
 
-if pacman -Qq bambustudio-bin bambustudio-nvidia-bin >/dev/null 2>&1; then
+if pacman -Qq bambustudio-bin >/dev/null 2>&1 || pacman -Qq bambustudio-nvidia-bin >/dev/null 2>&1; then
     echo -e "${CYAN}3. ${S_BMB_Q}${NC} ${DIM}(${S_ALR})${NC}"
     INSTALL_BAMBU="n"; _M_BMB="${S_ALR}"
 else
@@ -454,7 +462,7 @@ elif [ "$RUN_MODULE" = "software" ]; then
         echo -e "${CYAN}${S_STM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_STEAM </dev/tty; INSTALL_STEAM=${INSTALL_STEAM:-n}
     fi
     
-    if pacman -Qq bambustudio-bin bambustudio-nvidia-bin >/dev/null 2>&1; then
+    if pacman -Qq bambustudio-bin >/dev/null 2>&1 || pacman -Qq bambustudio-nvidia-bin >/dev/null 2>&1; then
         echo -e "${CYAN}${S_BMB_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_BAMBU="n"
     else
         echo -e "${CYAN}${S_BMB_Q}${NC}"; read -p "   ${S_YN} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-n}
@@ -572,7 +580,7 @@ echo -e "${GREEN}═════════════════════
 if [ "$DESKTOP_ENV" = "gnome" ]; then
     run_task "$S_GT" smart_install pacman gnome-tweaks gnome-browser-connector gnome-shell-extensions; SUMMARY+=("$S_GT_D")
     run_task "$S_CAF" smart_install pacman gnome-shell-extension-caffeine
-    run_task "$S_D2D" smart_install paru gnome-shell-extension-dash-to-dock
+    run_task "$S_D2D" install_gnome_extension "dash-to-dock@micxgx.gmail.com"
     echo -e "${BLUE}[ℹ] ${S_THM}${NC}"
     gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
     gsettings set org.gnome.desktop.interface gtk-theme 'Orchis-Green-Dark' 2>/dev/null || true
@@ -650,7 +658,7 @@ fi
 IS_LAPTOP=false; ls /sys/class/power_supply/ 2>/dev/null | grep -q -i "BAT" && IS_LAPTOP=true
 if $IS_LAPTOP; then
     SUMMARY+=("$S_LAP"); run_task "$S_PWR" smart_install paru auto-cpufreq powertop
-    if lspci | grep -q -i "nvidia"; then
+    if [ "$GPU_VENDOR" = "nvidia" ]; then
         run_task "$S_ENV" smart_install paru envycontrol; SUMMARY+=("$S_EVD"); SUMMARY+=("$S_EVT")
     fi
     systemctl is-active --quiet power-profiles-daemon 2>/dev/null && run_task "$S_PPS" sudo systemctl stop power-profiles-daemon
@@ -680,7 +688,7 @@ if [ -n "$BROWSER_PKG" ]; then run_task "${S_IBR} ($BROWSER_PKG)" smart_install 
 else SUMMARY+=("$S_BRS"); fi
 if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then run_task "$S_IST" smart_install pacman cachyos-gaming-meta; SUMMARY+=("$S_STD"); fi
 if [[ "$INSTALL_BAMBU" =~ $S_YN_RE ]]; then
-    if lspci | grep -q -i "nvidia"; then run_task "$S_IBN" smart_install paru bambustudio-nvidia-bin; SUMMARY+=("$S_BND")
+    if [ "$GPU_VENDOR" = "nvidia" ]; then run_task "$S_IBN" smart_install paru bambustudio-nvidia-bin; SUMMARY+=("$S_BND")
     else run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD"); fi
 fi
 if [[ "$INSTALL_VSCODE" =~ $S_YN_RE ]]; then run_task "$S_IVC" smart_install paru visual-studio-code-bin; SUMMARY+=("$S_VCD"); fi
