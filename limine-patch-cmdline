@@ -43,11 +43,11 @@ tmpfile=$(mktemp)
 modified=0
 
 while IFS= read -r line; do
-    if echo "$line" | grep -qiE '^\s*CMDLINE\s*='; then
+    if echo "$line" | grep -qiE '^\s*(kernel_)?cmdline\s*[:=]'; then
         for param in "${REQUIRED_PARAMS[@]}"; do
             if ! echo "$line" | grep -qF "$param"; then
                 line="$line $param"
-                echo "[limine-patch] Agregado: '$param'"
+                echo "[limine-patch] Agregado: '$param'" >&2
                 modified=1
             fi
         done
