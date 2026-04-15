@@ -119,6 +119,7 @@ All packages are asked before installation:
 ### Module 7: `limine` — Limine Cmdline Patch
 
 - Pacman hook to protect custom kernel parameters across updates
+- Optional CachyOS Limine theme application (based on `diegons490/cachyos-limine-theme`)
 - Base default: `usbcore.autosuspend=-1`
 - Auto-heals stale `root=UUID=...` values to match current root filesystem UUID
 - Re-adds Windows EFI chainloader entry if Microsoft bootloader is detected and no Windows entry exists

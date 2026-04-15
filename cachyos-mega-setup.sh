@@ -61,6 +61,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_SB_Q="¿Firmar el bootloader (Secure Boot)?"; S_SB_N="Requiere haber borrado las llaves de fábrica en BIOS."
   S_LM_Q="¿Instalar el parche de Limine (protege parámetros de kernel)?"
   S_LM_U="¿Actualizar parche de Limine?"
+  S_LT_Q="¿Aplicar tema CachyOS para Limine?"
   S_UPD="Actualización disponible"
   S_TS_Q="¿Instalar la extensión Tailscale Status para GNOME?"; S_TS_N="Gestionar conexiones Tailscale desde el escritorio."
   S_SUM="✅  RESUMEN DE SELECCIÓN"
@@ -135,6 +136,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_M7="🔧  MÓDULO 7: Limine Kernel Cmdline Patch"
   S_LMS="Instalando limine-patch-cmdline"; S_LMH="Instalando hook de pacman para Limine"
   S_LMA="Aplicando parche inicial a limine.conf"; S_LMD="Limine Patch: Hook instalado"
+  S_LTT="Aplicando tema de Limine (diegons490)"; S_LTD="Limine Theme: CachyOS aplicado"
   S_FTL="📋  RESUMEN DE LA INSTALACIÓN SCHOPERENA"
   S_GN="📝 NOTAS POST-INSTALACIÓN (GNOME):"
   S_G1="Cierra sesión y vuelve a entrar para activar extensiones."
@@ -171,6 +173,7 @@ else
   S_SB_Q="Sign bootloader (Secure Boot)?"; S_SB_N="Requires factory keys cleared in BIOS."
   S_LM_Q="Install Limine patch (protects kernel parameters)?"
   S_LM_U="Update Limine patch?"
+  S_LT_Q="Apply CachyOS theme for Limine?"
   S_UPD="Update available"
   S_TS_Q="Install Tailscale Status extension for GNOME?"; S_TS_N="Manage Tailscale connections from desktop."
   S_SUM="✅  SELECTION SUMMARY"
@@ -245,6 +248,7 @@ else
   S_M7="🔧  MODULE 7: Limine Kernel Cmdline Patch"
   S_LMS="Installing limine-patch-cmdline"; S_LMH="Installing pacman hook for Limine"
   S_LMA="Applying initial patch to limine.conf"; S_LMD="Limine Patch: Hook installed"
+  S_LTT="Applying Limine theme (diegons490)"; S_LTD="Limine Theme: CachyOS applied"
   S_FTL="📋  SCHOPERENA INSTALLATION SUMMARY"
   S_GN="📝 POST-INSTALL NOTES (GNOME):"
   S_G1="Log out and back in to activate new extensions."
@@ -409,12 +413,13 @@ SUMMARY+=("$S_SYSUP_D")
 # === Default variable values (for module-only mode) ===
 BROWSER_PKG=""; BROWSER_CHOICE=3; INSTALL_STEAM="n"; INSTALL_BAMBU="n"; INSTALL_VSCODE="n"; INSTALL_CODEX="n"; INSTALL_CLAUDE_CODE="n"
 INSTALL_PRINTER="n"; SIGN_BOOTLOADER="n"; INSTALL_LIMINE_PATCH="n"; INSTALL_TAILSCALE_EXT="n"
+INSTALL_LIMINE_THEME="n"
 PRINTER_MODEL="DCP-L2640DW"; PRINTER_IP="10.0.2.220"
 
 # For single-module mode, auto-enable relevant flags
 if [ "$RUN_MODULE" = "printer" ]; then INSTALL_PRINTER="${S_YN_Y}"; fi
 if [ "$RUN_MODULE" = "secureboot" ]; then SIGN_BOOTLOADER="${S_YN_Y}"; fi
-if [ "$RUN_MODULE" = "limine" ]; then INSTALL_LIMINE_PATCH="${S_YN_Y}"; fi
+if [ "$RUN_MODULE" = "limine" ]; then INSTALL_LIMINE_PATCH="${S_YN_Y}"; INSTALL_LIMINE_THEME="${S_YN_Y}"; fi
 
 # === Mega Menu (only in full interactive mode) ===
 if [ "$RUN_MODULE" = "all" ]; then
@@ -502,6 +507,10 @@ else
     _M_LM=$([[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 fi
 
+echo -e "${CYAN}6b. ${S_LT_Q}${NC}"
+read -p "   ${S_YN} " INSTALL_LIMINE_THEME </dev/tty; INSTALL_LIMINE_THEME=${INSTALL_LIMINE_THEME:-n}; echo ""
+_M_LT=$([[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+
 INSTALL_TAILSCALE_EXT="n"; _M_TS="$S_NO"
 if [ "$DESKTOP_ENV" = "gnome" ]; then
     if gnome-extensions list 2>/dev/null | grep -q "tailscale-status"; then
@@ -529,6 +538,7 @@ echo -e "   Claude Code:    $_M_CLD"
 echo -e "   ${S_L_PRT}:       $([[ "$INSTALL_PRINTER" =~ $S_YN_RE ]] && echo "$PRINTER_MODEL @ $PRINTER_IP" || echo "$S_NO")"
 echo -e "   Secure Boot:    $_M_SB"
 echo -e "   Limine Patch:   $_M_LM"
+echo -e "   Limine Theme:   $_M_LT"
 [ "$DESKTOP_ENV" = "gnome" ] && echo -e "   Tailscale:      $_M_TS"
 echo ""; read -p "${S_CONFIRM} " </dev/tty; echo ""
 
@@ -875,14 +885,20 @@ if [[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]]; then
 fi
 
 # === MODULE 7: Limine Patch ===
-if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]]; then
+if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] || [[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]]; then
     echo ""; echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}  ${S_M7}${NC}"
     echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"; echo ""
     BASE_URL="https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main"
-    run_task "$S_LMS" sudo bash -c "curl -fsSL '$BASE_URL/limine-patch-cmdline' -o /usr/local/bin/limine-patch-cmdline; chmod +x /usr/local/bin/limine-patch-cmdline"
-    run_task "$S_LMH" sudo bash -c "mkdir -p /etc/pacman.d/hooks; curl -fsSL '$BASE_URL/limine-cmdline-patch.hook' -o /etc/pacman.d/hooks/limine-cmdline-patch.hook"
-    run_task "$S_LMA" sudo /usr/local/bin/limine-patch-cmdline; SUMMARY+=("$S_LMD")
+    if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]]; then
+        run_task "$S_LMS" sudo bash -c "curl -fsSL '$BASE_URL/limine-patch-cmdline' -o /usr/local/bin/limine-patch-cmdline; chmod +x /usr/local/bin/limine-patch-cmdline"
+        run_task "$S_LMH" sudo bash -c "mkdir -p /etc/pacman.d/hooks; curl -fsSL '$BASE_URL/limine-cmdline-patch.hook' -o /etc/pacman.d/hooks/limine-cmdline-patch.hook"
+        run_task "$S_LMA" sudo /usr/local/bin/limine-patch-cmdline; SUMMARY+=("$S_LMD")
+    fi
+    if [[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]]; then
+        run_task "$S_LTT" sudo bash -c "curl -fsSL 'https://raw.githubusercontent.com/diegons490/cachyos-limine-theme/main/cachyos.png' -o /boot/cachyos.png; cp /boot/limine.conf /boot/limine.conf.bak-theme; sed -i '/^term_palette_bright:/d;/^term_background:/d;/^term_foreground:/d;/^term_background_bright:/d;/^term_foreground_bright:/d;/^timeout:/d;/^wallpaper:/d;/^interface_branding:/d;/^default_entry:/d' /boot/limine.conf; sed -i '1iterm_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4\\nterm_background: ffffffff\\nterm_foreground: cdd6f4\\nterm_background_bright: ffffffff\\nterm_foreground_bright: cdd6f4\\ntimeout: 10\\nwallpaper: boot():/cachyos.png\\ninterface_branding:\\ndefault_entry: 2' /boot/limine.conf"
+        SUMMARY+=("$S_LTD")
+    fi
 fi
 
 # === FINAL SUMMARY ===
