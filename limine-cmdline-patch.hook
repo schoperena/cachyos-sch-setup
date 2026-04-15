@@ -3,11 +3,13 @@ Operation = Install
 Operation = Upgrade
 Type = Package
 Target = limine
+# Cover both upstream and CachyOS kernel variants (e.g. linux-cachyos-*)
 Target = linux
+Target = linux-*
 Target = linux-cachyos
-Target = linux-cachyos-bore
-Target = linux-cachyos-lto
+Target = linux-cachyos-*
 Target = mkinitcpio
+Target = mkinitcpio*
 
 [Action]
 Description = Reinjecting custom kernel parameters into limine.conf...
