@@ -120,6 +120,8 @@ All packages are asked before installation:
 
 - Pacman hook to protect custom kernel parameters across updates
 - Base default: `usbcore.autosuspend=-1`
+- Auto-heals stale `root=UUID=...` values to match current root filesystem UUID
+- Re-adds Windows EFI chainloader entry if Microsoft bootloader is detected and no Windows entry exists
 - **NVIDIA GPUs**: Auto-detects and adds `nvidia_drm.modeset=1` and `nvidia_drm.fbdev=1`.
 - **AMD GPUs**: Auto-detects and adds `amd_pstate=active`.
 
