@@ -10,6 +10,7 @@
 #    No argument = full interactive setup
 # =============================================================================
 set -uo pipefail
+export PATH="$HOME/.local/bin:$PATH"
 
 # === CLI Argument Parsing ===
 RUN_MODULE="${1:-all}"
@@ -44,18 +45,23 @@ if [ "$LANG_SEL" = "es" ]; then
   S_BANNER_SUB="Instalador unificado de todo el sistema"
   S_DET_DE="Escritorio detectado"; S_DET_CPU="CPU detectada"; S_DET_GPU="GPU detectada"; S_ARCH_L="Arquitectura"; S_HYBRID="Híbrida (P-core / E-core)"
   S_SUDO="[!] Ingresa tu contraseña para autorizar la instalación:"
+  S_SYSUP="Actualizando sistema completo (pacman -Syu)"; S_SYSUP_D="Sistema actualizado antes del setup"; S_SYSUP_E="No se pudo actualizar el sistema. Abortando para evitar inconsistencias."
   S_CFG="📋  CONFIGURACIÓN DEL SETUP"
   S_BRW_Q="¿Qué navegador web prefieres instalar?"; S_BRW_3="Ninguno / Mantener el actual"
   S_SEL="Selecciona"; S_DEF="default"
   S_STM_Q="¿Instalar Steam (y meta-paquete gaming)?"; S_BMB_Q="¿Instalar Bambu Studio (impresión 3D)?"
   S_VSC_Q="¿Instalar Visual Studio Code?"
   S_IVC="Instalando Visual Studio Code"; S_VCD="IDE: Visual Studio Code instalado"
+  S_CDX_Q="¿Instalar Codex CLI (npm)?"; S_CDX_I="Instalando Codex CLI (npm)"; S_CDX_D="CLI: Codex instalado"; S_CDX_A="Codex CLI ya instalado"
+  S_CLD_Q="¿Instalar Claude Code (npm)?"; S_CLD_I="Instalando Claude Code (npm)"; S_CLD_D="CLI: Claude Code instalado"; S_CLD_A="Claude Code ya instalado"
+  S_NPM_I="Instalando dependencias Node.js/npm"
   S_PRT_Q="¿Instalar impresora Brother?"
   S_PRT_MD="Modelo por defecto"; S_PRT_MQ="Modelo de impresora (Enter para default)"
   S_PRT_ID="IP por defecto"; S_PRT_IQ="IP de la impresora (Enter para default)"
   S_SB_Q="¿Firmar el bootloader (Secure Boot)?"; S_SB_N="Requiere haber borrado las llaves de fábrica en BIOS."
   S_LM_Q="¿Instalar el parche de Limine (protege parámetros de kernel)?"
   S_LM_U="¿Actualizar parche de Limine?"
+  S_LT_Q="¿Aplicar tema CachyOS para Limine?"
   S_UPD="Actualización disponible"
   S_TS_Q="¿Instalar la extensión Tailscale Status para GNOME?"; S_TS_N="Gestionar conexiones Tailscale desde el escritorio."
   S_SUM="✅  RESUMEN DE SELECCIÓN"
@@ -86,11 +92,15 @@ if [ "$LANG_SEL" = "es" ]; then
   S_KD1="KDE: Orchis Dark + Kvantum + esquema verde Schoperena"; S_KD2="Iconos: Tela-circle-green-dark en KDE"
   S_DUK="Escritorio no reconocido. Saltando personalización."; S_DSK="Personalización: Saltada"
   S_M3="🔧  MÓDULO 3: Optimización de Hardware"
+  S_MCU_I="Instalando microcódigo de CPU"; S_MCU_ID="-> Microcódigo Intel instalado/verificado"; S_MCU_AD="-> Microcódigo AMD instalado/verificado"
   S_IVA="Instalando aceleración de video Intel"; S_IVD="-> Aceleración Intel (VA-API) configurada"
   S_ITH="Instalando thermald (térmico Intel híbrida)"; S_ITA="Activando thermald"
   S_ITD="-> Intel 12th gen+: thermald activado para P-core/E-core"
   S_AVA="Verificando aceleración AMD (incluida en mesa)"; S_AVD="-> Aceleración AMD verificada (en mesa)"
   S_LAP="Hardware: Batería presente (Perfil Portátil)"; S_DST="Hardware: Escritorio (Máximo Rendimiento)"
+  S_IRQ_I="Instalando irqbalance"; S_IRQ_E="Activando irqbalance"; S_IRQ_D="-> irqbalance habilitado (mejor reparto de interrupciones)"
+  S_FWU_I="Instalando fwupd (firmware)"; S_FWU_E="Activando fwupd (firmware)"; S_FWU_D="-> fwupd habilitado para actualizaciones de firmware"
+  S_HYB_LAP="-> Perfil Intel híbrido portátil aplicado (thermald + irqbalance + microcódigo)"
   S_PWR="Instalando utilidades de ahorro de energía"
   S_ENV="Instalando EnvyControl para NVIDIA"; S_EVD="-> NVIDIA: EnvyControl configurado"
   S_EVT="   Usa 'sudo envycontrol -s integrated' para máxima batería"
@@ -126,6 +136,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_M7="🔧  MÓDULO 7: Limine Kernel Cmdline Patch"
   S_LMS="Instalando limine-patch-cmdline"; S_LMH="Instalando hook de pacman para Limine"
   S_LMA="Aplicando parche inicial a limine.conf"; S_LMD="Limine Patch: Hook instalado"
+  S_LTT="Aplicando tema de Limine (diegons490)"; S_LTD="Limine Theme: CachyOS aplicado"
   S_FTL="📋  RESUMEN DE LA INSTALACIÓN SCHOPERENA"
   S_GN="📝 NOTAS POST-INSTALACIÓN (GNOME):"
   S_G1="Cierra sesión y vuelve a entrar para activar extensiones."
@@ -146,18 +157,23 @@ else
   S_BANNER_SUB="Unified system installer"
   S_DET_DE="Desktop detected"; S_DET_CPU="CPU detected"; S_DET_GPU="GPU detected"; S_ARCH_L="Architecture"; S_HYBRID="Hybrid (P-core / E-core)"
   S_SUDO="[!] Please enter your password to authorize the installation:"
+  S_SYSUP="Updating full system (pacman -Syu)"; S_SYSUP_D="System updated before setup"; S_SYSUP_E="System update failed. Aborting to avoid inconsistencies."
   S_CFG="📋  SETUP CONFIGURATION"
   S_BRW_Q="Which web browser do you prefer?"; S_BRW_3="None / Keep current"
   S_SEL="Select"; S_DEF="default"
   S_STM_Q="Install Steam (and gaming meta-package)?"; S_BMB_Q="Install Bambu Studio (3D printing)?"
   S_VSC_Q="Install Visual Studio Code?"
   S_IVC="Installing Visual Studio Code"; S_VCD="IDE: Visual Studio Code installed"
+  S_CDX_Q="Install Codex CLI (npm)?"; S_CDX_I="Installing Codex CLI (npm)"; S_CDX_D="CLI: Codex installed"; S_CDX_A="Codex CLI already installed"
+  S_CLD_Q="Install Claude Code (npm)?"; S_CLD_I="Installing Claude Code (npm)"; S_CLD_D="CLI: Claude Code installed"; S_CLD_A="Claude Code already installed"
+  S_NPM_I="Installing Node.js/npm dependencies"
   S_PRT_Q="Install Brother printer?"
   S_PRT_MD="Default model"; S_PRT_MQ="Printer model (Enter for default)"
   S_PRT_ID="Default IP"; S_PRT_IQ="Printer IP (Enter for default)"
   S_SB_Q="Sign bootloader (Secure Boot)?"; S_SB_N="Requires factory keys cleared in BIOS."
   S_LM_Q="Install Limine patch (protects kernel parameters)?"
   S_LM_U="Update Limine patch?"
+  S_LT_Q="Apply CachyOS theme for Limine?"
   S_UPD="Update available"
   S_TS_Q="Install Tailscale Status extension for GNOME?"; S_TS_N="Manage Tailscale connections from desktop."
   S_SUM="✅  SELECTION SUMMARY"
@@ -188,11 +204,15 @@ else
   S_KD1="KDE: Orchis Dark + Kvantum + Schoperena green scheme"; S_KD2="Icons: Tela-circle-green-dark on KDE"
   S_DUK="Desktop not recognized. Skipping customization."; S_DSK="Customization: Skipped"
   S_M3="🔧  MODULE 3: Hardware Optimization"
+  S_MCU_I="Installing CPU microcode"; S_MCU_ID="-> Intel microcode installed/verified"; S_MCU_AD="-> AMD microcode installed/verified"
   S_IVA="Installing Intel video acceleration"; S_IVD="-> Intel acceleration (VA-API) configured"
   S_ITH="Installing thermald (Intel hybrid thermal)"; S_ITA="Enabling thermald"
   S_ITD="-> Intel 12th gen+: thermald enabled for P-core/E-core"
   S_AVA="Verifying AMD acceleration (included in mesa)"; S_AVD="-> AMD acceleration verified (in mesa)"
   S_LAP="Hardware: Battery present (Laptop Profile)"; S_DST="Hardware: Desktop PC (Max Performance)"
+  S_IRQ_I="Installing irqbalance"; S_IRQ_E="Enabling irqbalance"; S_IRQ_D="-> irqbalance enabled (better interrupt distribution)"
+  S_FWU_I="Installing fwupd (firmware)"; S_FWU_E="Enabling fwupd (firmware)"; S_FWU_D="-> fwupd enabled for firmware updates"
+  S_HYB_LAP="-> Intel hybrid laptop profile applied (thermald + irqbalance + microcode)"
   S_PWR="Installing power saving utilities"
   S_ENV="Installing EnvyControl for NVIDIA"; S_EVD="-> NVIDIA: EnvyControl configured"
   S_EVT="   Use 'sudo envycontrol -s integrated' for max battery"
@@ -228,6 +248,7 @@ else
   S_M7="🔧  MODULE 7: Limine Kernel Cmdline Patch"
   S_LMS="Installing limine-patch-cmdline"; S_LMH="Installing pacman hook for Limine"
   S_LMA="Applying initial patch to limine.conf"; S_LMD="Limine Patch: Hook installed"
+  S_LTT="Applying Limine theme (diegons490)"; S_LTD="Limine Theme: CachyOS applied"
   S_FTL="📋  SCHOPERENA INSTALLATION SUMMARY"
   S_GN="📝 POST-INSTALL NOTES (GNOME):"
   S_G1="Log out and back in to activate new extensions."
@@ -273,6 +294,39 @@ run_task() {
         echo "FAILED WITH EXIT CODE $ec" >> "$LOG_FILE"
     fi
     return $ec
+}
+
+prompt_optional_cmd_install() {
+    local check_cmd="$1" prompt_text="$2" out_var="$3" menu_label="${4:-}" summary_var="${5:-}"
+    local answer
+    if command -v "$check_cmd" >/dev/null 2>&1; then
+        if [ -n "$menu_label" ]; then
+            echo -e "${CYAN}${menu_label} ${prompt_text}${NC} ${DIM}(${S_ALR})${NC}"
+        else
+            echo -e "${CYAN}${prompt_text}${NC} ${DIM}(${S_ALR})${NC}"
+        fi
+        printf -v "$out_var" "n"
+        [ -n "$summary_var" ] && printf -v "$summary_var" "%s" "$S_ALR"
+    else
+        if [ -n "$menu_label" ]; then
+            echo -e "${CYAN}${menu_label} ${prompt_text}${NC}"
+        else
+            echo -e "${CYAN}${prompt_text}${NC}"
+        fi
+        read -p "   ${S_YN} " answer </dev/tty
+        answer=${answer:-n}
+        printf -v "$out_var" "%s" "$answer"
+        [ -n "$summary_var" ] && printf -v "$summary_var" "%s" "$([[ "$answer" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")"
+        echo ""
+    fi
+}
+
+ensure_local_bin_path() {
+    mkdir -p "$HOME/.config/fish/conf.d"
+    grep -qF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.profile" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.profile"
+    if [ ! -f "$HOME/.config/fish/conf.d/99-local-bin.fish" ] || ! grep -q "fish_add_path -m ~/.local/bin" "$HOME/.config/fish/conf.d/99-local-bin.fish"; then
+        echo 'fish_add_path -m ~/.local/bin' >> "$HOME/.config/fish/conf.d/99-local-bin.fish"
+    fi
 }
 smart_install() {
     local tool="$1"; shift; local m=()
@@ -349,15 +403,23 @@ echo -e "${YELLOW}${S_SUDO}${NC}"; sudo -v
 (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null) &
 echo ""
 
+# === Mandatory full update before setup ===
+if ! run_task "$S_SYSUP" sudo pacman -Syu --noconfirm; then
+    echo -e "${RED}[✖] ${S_SYSUP_E}${NC}"
+    exit 1
+fi
+SUMMARY+=("$S_SYSUP_D")
+
 # === Default variable values (for module-only mode) ===
-BROWSER_PKG=""; BROWSER_CHOICE=3; INSTALL_STEAM="n"; INSTALL_BAMBU="n"; INSTALL_VSCODE="n"
+BROWSER_PKG=""; BROWSER_CHOICE=3; INSTALL_STEAM="n"; INSTALL_BAMBU="n"; INSTALL_VSCODE="n"; INSTALL_CODEX="n"; INSTALL_CLAUDE_CODE="n"
 INSTALL_PRINTER="n"; SIGN_BOOTLOADER="n"; INSTALL_LIMINE_PATCH="n"; INSTALL_TAILSCALE_EXT="n"
+INSTALL_LIMINE_THEME="n"
 PRINTER_MODEL="DCP-L2640DW"; PRINTER_IP="10.0.2.220"
 
 # For single-module mode, auto-enable relevant flags
 if [ "$RUN_MODULE" = "printer" ]; then INSTALL_PRINTER="${S_YN_Y}"; fi
 if [ "$RUN_MODULE" = "secureboot" ]; then SIGN_BOOTLOADER="${S_YN_Y}"; fi
-if [ "$RUN_MODULE" = "limine" ]; then INSTALL_LIMINE_PATCH="${S_YN_Y}"; fi
+if [ "$RUN_MODULE" = "limine" ]; then INSTALL_LIMINE_PATCH="${S_YN_Y}"; INSTALL_LIMINE_THEME="${S_YN_Y}"; fi
 
 # === Mega Menu (only in full interactive mode) ===
 if [ "$RUN_MODULE" = "all" ]; then
@@ -404,6 +466,9 @@ else
     _M_VSC=$([[ "$INSTALL_VSCODE" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 fi
 
+prompt_optional_cmd_install "codex" "$S_CDX_Q" "INSTALL_CODEX" "3c." "_M_CDX"
+prompt_optional_cmd_install "claude" "$S_CLD_Q" "INSTALL_CLAUDE_CODE" "3d." "_M_CLD"
+
 echo -e "${CYAN}4. ${S_PRT_Q}${NC}"; read -p "   ${S_YN} " INSTALL_PRINTER </dev/tty; INSTALL_PRINTER=${INSTALL_PRINTER:-n}
 PRINTER_MODEL="DCP-L2640DW"; PRINTER_IP="10.0.2.220"
 if [[ "$INSTALL_PRINTER" =~ $S_YN_RE ]]; then
@@ -442,6 +507,10 @@ else
     _M_LM=$([[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 fi
 
+echo -e "${CYAN}6b. ${S_LT_Q}${NC}"
+read -p "   ${S_YN} " INSTALL_LIMINE_THEME </dev/tty; INSTALL_LIMINE_THEME=${INSTALL_LIMINE_THEME:-n}; echo ""
+_M_LT=$([[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+
 INSTALL_TAILSCALE_EXT="n"; _M_TS="$S_NO"
 if [ "$DESKTOP_ENV" = "gnome" ]; then
     if gnome-extensions list 2>/dev/null | grep -q "tailscale-status"; then
@@ -464,9 +533,12 @@ echo -e "   ${S_L_BRW}:       $_M_BRW"
 echo -e "   Steam:          $_M_STM"
 echo -e "   Bambu Studio:   $_M_BMB"
 echo -e "   VS Code:        $_M_VSC"
+echo -e "   Codex CLI:      $_M_CDX"
+echo -e "   Claude Code:    $_M_CLD"
 echo -e "   ${S_L_PRT}:       $([[ "$INSTALL_PRINTER" =~ $S_YN_RE ]] && echo "$PRINTER_MODEL @ $PRINTER_IP" || echo "$S_NO")"
 echo -e "   Secure Boot:    $_M_SB"
 echo -e "   Limine Patch:   $_M_LM"
+echo -e "   Limine Theme:   $_M_LT"
 [ "$DESKTOP_ENV" = "gnome" ] && echo -e "   Tailscale:      $_M_TS"
 echo ""; read -p "${S_CONFIRM} " </dev/tty; echo ""
 
@@ -506,6 +578,9 @@ elif [ "$RUN_MODULE" = "software" ]; then
     else
         echo -e "${CYAN}${S_VSC_Q}${NC}"; read -p "   ${S_YN} " INSTALL_VSCODE </dev/tty; INSTALL_VSCODE=${INSTALL_VSCODE:-n}
     fi
+
+    prompt_optional_cmd_install "codex" "$S_CDX_Q" "INSTALL_CODEX"
+    prompt_optional_cmd_install "claude" "$S_CLD_Q" "INSTALL_CLAUDE_CODE"
 fi  # end menu
 # =============================================================================
 #  MODULES 1-7: Execution
@@ -680,14 +755,18 @@ echo ""; echo -e "${GREEN}══════════════════
 echo -e "${GREEN}  ${S_M3}${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"; echo ""
 if [ "$CPU_VENDOR" = "intel" ]; then
+    run_task "$S_MCU_I" smart_install pacman intel-ucode; SUMMARY+=("$S_MCU_ID")
     run_task "$S_IVA" smart_install pacman intel-media-driver libva-intel-driver; SUMMARY+=("$S_IVD")
     if $CPU_IS_HYBRID; then
         run_task "$S_ITH" smart_install pacman thermald
         run_task "$S_ITA" sudo systemctl enable --now thermald; SUMMARY+=("$S_ITD")
     fi
 elif [ "$CPU_VENDOR" = "amd" ]; then
+    run_task "$S_MCU_I" smart_install pacman amd-ucode; SUMMARY+=("$S_MCU_AD")
     run_task "$S_AVA" smart_install pacman mesa; SUMMARY+=("$S_AVD")
 fi
+run_task "$S_IRQ_I" smart_install pacman irqbalance
+run_task "$S_IRQ_E" sudo systemctl enable --now irqbalance; SUMMARY+=("$S_IRQ_D")
 IS_LAPTOP=false
 if [ -d /sys/class/power_supply ]; then
     for supply in /sys/class/power_supply/*; do
@@ -699,6 +778,11 @@ if [ -d /sys/class/power_supply ]; then
 fi
 if $IS_LAPTOP; then
     SUMMARY+=("$S_LAP"); run_task "$S_PWR" smart_install paru auto-cpufreq powertop
+    run_task "$S_FWU_I" smart_install pacman fwupd
+    run_task "$S_FWU_E" sudo systemctl enable --now fwupd.service; SUMMARY+=("$S_FWU_D")
+    if [ "$CPU_VENDOR" = "intel" ] && $CPU_IS_HYBRID; then
+        SUMMARY+=("$S_HYB_LAP")
+    fi
     if [ "$GPU_VENDOR" = "nvidia" ]; then
         run_task "$S_ENV" smart_install paru envycontrol; SUMMARY+=("$S_EVD"); SUMMARY+=("$S_EVT")
     fi
@@ -725,6 +809,7 @@ if [ "$RUN_MODULE" = "all" ] || [ "$RUN_MODULE" = "software" ]; then
 echo ""; echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}  ${S_M4}${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"; echo ""
+npm_ready=false
 if [ -n "$BROWSER_PKG" ]; then run_task "${S_IBR} ($BROWSER_PKG)" smart_install paru "$BROWSER_PKG"; SUMMARY+=("${S_BRD}: $BROWSER_PKG")
 else SUMMARY+=("$S_BRS"); fi
 if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then run_task "$S_IST" smart_install pacman cachyos-gaming-meta; SUMMARY+=("$S_STD"); fi
@@ -733,6 +818,18 @@ if [[ "$INSTALL_BAMBU" =~ $S_YN_RE ]]; then
     else run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD"); fi
 fi
 if [[ "$INSTALL_VSCODE" =~ $S_YN_RE ]]; then run_task "$S_IVC" smart_install paru visual-studio-code-bin; SUMMARY+=("$S_VCD"); fi
+if [[ "$INSTALL_CODEX" =~ $S_YN_RE ]]; then
+    $npm_ready || { run_task "$S_NPM_I" smart_install pacman nodejs npm && npm_ready=true; }
+    run_task "$S_CDX_I" npm install -g --prefix "$HOME/.local" @openai/codex
+    ensure_local_bin_path
+    SUMMARY+=("$S_CDX_D")
+fi
+if [[ "$INSTALL_CLAUDE_CODE" =~ $S_YN_RE ]]; then
+    $npm_ready || { run_task "$S_NPM_I" smart_install pacman nodejs npm && npm_ready=true; }
+    run_task "$S_CLD_I" npm install -g --prefix "$HOME/.local" @anthropic-ai/claude-code
+    ensure_local_bin_path
+    SUMMARY+=("$S_CLD_D")
+fi
 fi  # end module software
 
 # === MODULE 5: Brother Printer ===
@@ -788,14 +885,20 @@ if [[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]]; then
 fi
 
 # === MODULE 7: Limine Patch ===
-if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]]; then
+if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] || [[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]]; then
     echo ""; echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}  ${S_M7}${NC}"
     echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"; echo ""
     BASE_URL="https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main"
-    run_task "$S_LMS" sudo bash -c "curl -fsSL '$BASE_URL/limine-patch-cmdline' -o /usr/local/bin/limine-patch-cmdline; chmod +x /usr/local/bin/limine-patch-cmdline"
-    run_task "$S_LMH" sudo bash -c "mkdir -p /etc/pacman.d/hooks; curl -fsSL '$BASE_URL/limine-cmdline-patch.hook' -o /etc/pacman.d/hooks/limine-cmdline-patch.hook"
-    run_task "$S_LMA" sudo /usr/local/bin/limine-patch-cmdline; SUMMARY+=("$S_LMD")
+    if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]]; then
+        run_task "$S_LMS" sudo bash -c "curl -fsSL '$BASE_URL/limine-patch-cmdline' -o /usr/local/bin/limine-patch-cmdline; chmod +x /usr/local/bin/limine-patch-cmdline"
+        run_task "$S_LMH" sudo bash -c "mkdir -p /etc/pacman.d/hooks; curl -fsSL '$BASE_URL/limine-cmdline-patch.hook' -o /etc/pacman.d/hooks/limine-cmdline-patch.hook"
+        run_task "$S_LMA" sudo /usr/local/bin/limine-patch-cmdline; SUMMARY+=("$S_LMD")
+    fi
+    if [[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]]; then
+        run_task "$S_LTT" sudo bash -c "curl -fsSL 'https://raw.githubusercontent.com/diegons490/cachyos-limine-theme/main/cachyos.png' -o /boot/cachyos.png; cp /boot/limine.conf /boot/limine.conf.bak-theme; sed -i '/^term_palette_bright:/d;/^term_background:/d;/^term_foreground:/d;/^term_background_bright:/d;/^term_foreground_bright:/d;/^timeout:/d;/^wallpaper:/d;/^interface_branding:/d;/^default_entry:/d' /boot/limine.conf; sed -i '1iterm_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4\\nterm_background: ffffffff\\nterm_foreground: cdd6f4\\nterm_background_bright: ffffffff\\nterm_foreground_bright: cdd6f4\\ntimeout: 10\\nwallpaper: boot():/cachyos.png\\ninterface_branding:\\ndefault_entry: 2' /boot/limine.conf"
+        SUMMARY+=("$S_LTD")
+    fi
 fi
 
 # === FINAL SUMMARY ===

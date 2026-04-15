@@ -13,6 +13,17 @@
 set -euo pipefail
 
 LIMINE_CONF="/boot/limine.conf"
+CURRENT_ROOT_UUID="$(findmnt -no UUID / 2>/dev/null || true)"
+WINDOWS_EFI_PATH=""
+for candidate in \
+    "/boot/EFI/Microsoft/Boot/bootmgfw.efi" \
+    "/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi" \
+    "/efi/EFI/Microsoft/Boot/bootmgfw.efi"; do
+    if [[ -f "$candidate" ]]; then
+        WINDOWS_EFI_PATH="$candidate"
+        break
+    fi
+done
 
 # Parámetros que deben estar siempre presentes en cada línea CMDLINE.
 # Agrega aquí cualquier otro parámetro que quieras proteger.
@@ -44,6 +55,11 @@ modified=0
 
 while IFS= read -r line; do
     if echo "$line" | grep -qiE '^\s*(kernel_)?cmdline\s*[:=]'; then
+        if [[ -n "$CURRENT_ROOT_UUID" ]] && echo "$line" | grep -qE 'root=UUID=[^[:space:]]+'; then
+            line="$(echo "$line" | sed -E "s#root=UUID=[^[:space:]]+#root=UUID=${CURRENT_ROOT_UUID}#")"
+            modified=1
+            echo "[limine-patch] root=UUID actualizado a ${CURRENT_ROOT_UUID}" >&2
+        fi
         for param in "${REQUIRED_PARAMS[@]}"; do
             if ! echo "$line" | grep -qF "$param"; then
                 line="$line $param"
@@ -54,6 +70,19 @@ while IFS= read -r line; do
     fi
     echo "$line"
 done < "$LIMINE_CONF" > "$tmpfile"
+
+if [[ -n "$WINDOWS_EFI_PATH" ]] && ! grep -qiE '^\s*:\s*windows' "$tmpfile"; then
+    windows_rel_path="${WINDOWS_EFI_PATH#/boot}"
+    windows_rel_path="${windows_rel_path#/efi}"
+    cat >> "$tmpfile" <<EOF
+
+:Windows
+    protocol: efi
+    path: boot():${windows_rel_path}
+EOF
+    modified=1
+    echo "[limine-patch] Entrada Windows agregada automáticamente (${windows_rel_path})" >&2
+fi
 
 if [[ $modified -eq 1 ]]; then
     cp "$LIMINE_CONF" "${LIMINE_CONF}.bak"

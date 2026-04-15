@@ -5,6 +5,8 @@ Automated post-installation and configuration scripts for **CachyOS (GNOME / KDE
 > **Language:** Supports **English** (default) and **Spanish**. You'll be prompted at the start.
 >
 > **Idempotent:** Safe to re-run — detects already installed packages and skips them.
+>
+> **Pre-flight update:** Script now runs `sudo pacman -Syu --noconfirm` at startup and aborts if it fails.
 
 ---
 
@@ -27,7 +29,7 @@ chmod +x cachyos-mega-setup.sh
 ./cachyos-mega-setup.sh base         # Terminal, themes, fonts, Fish, OMF
 ./cachyos-mega-setup.sh desktop      # GNOME/KDE customization and extensions
 ./cachyos-mega-setup.sh hardware     # CPU/GPU optimization & power management
-./cachyos-mega-setup.sh software     # Browser, Steam, Bambu Studio, VS Code
+./cachyos-mega-setup.sh software     # Browser, Steam, Bambu Studio, VS Code, Codex CLI, Claude Code
 ./cachyos-mega-setup.sh printer      # Brother printer installation
 ./cachyos-mega-setup.sh secureboot   # Secure Boot signing with sbctl
 ./cachyos-mega-setup.sh limine       # Limine kernel cmdline patch
@@ -82,11 +84,15 @@ chmod +x cachyos-mega-setup.sh
 | Intel 12th gen+ | + `thermald` for P-core/E-core thermal management |
 | AMD CPU | Verifies `mesa` (VA-API included since mesa absorbed the old packages) |
 | NVIDIA GPU | Uses NVIDIA-specific builds, allows envycontrol on laptops |
+| Intel/AMD CPU | Ensures matching microcode package (`intel-ucode` / `amd-ucode`) |
+| Multicore systems | Enables `irqbalance` for interrupt distribution |
 
 **Laptop (battery detected):**
 - `auto-cpufreq` + `powertop` for power saving
+- `fwupd` enabled for firmware updates
 - **Masks** `power-profiles-daemon` (prevents GNOME/KDE from restarting it)
 - `envycontrol` for NVIDIA Optimus laptops
+- Intel hybrid laptops get extra profile notes (`thermald + irqbalance + microcode`)
 
 ### Module 4: `software` — Optional Software (All Optional)
 
@@ -95,6 +101,8 @@ All packages are asked before installation:
 - 🎮 Steam
 - 🖨️ Bambu Studio (auto-detects NVIDIA)
 - 💻 Visual Studio Code
+- 🤖 Codex CLI (npm: `@openai/codex`, user prefix `~/.local`)
+- 🧠 Claude Code (npm: `@anthropic-ai/claude-code`, user prefix `~/.local`)
 
 ### Module 5: `printer` — Brother Printer
 
@@ -111,7 +119,10 @@ All packages are asked before installation:
 ### Module 7: `limine` — Limine Cmdline Patch
 
 - Pacman hook to protect custom kernel parameters across updates
+- Optional CachyOS Limine theme application (based on `diegons490/cachyos-limine-theme`)
 - Base default: `usbcore.autosuspend=-1`
+- Auto-heals stale `root=UUID=...` values to match current root filesystem UUID
+- Re-adds Windows EFI chainloader entry if Microsoft bootloader is detected and no Windows entry exists
 - **NVIDIA GPUs**: Auto-detects and adds `nvidia_drm.modeset=1` and `nvidia_drm.fbdev=1`.
 - **AMD GPUs**: Auto-detects and adds `amd_pstate=active`.
 
