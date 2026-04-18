@@ -98,7 +98,7 @@ chmod +x cachyos-mega-setup.sh
 
 All packages are asked before installation:
 - 🌐 Browser (Google Chrome / Brave)
-- 🎮 Steam
+- 🎮 Steam + `cachyos-gaming-meta` + `gamemode` / `lib32-gamemode` (enables `gamemoded.service` automatically)
 - 🖨️ Bambu Studio (auto-detects NVIDIA)
 - 💻 Visual Studio Code
 - 🤖 Codex CLI (npm: `@openai/codex`, user prefix `~/.local`)
@@ -133,6 +133,7 @@ All packages are asked before installation:
 1. **Restart terminal** — Close and reopen for Nerd Font to load in Fish
 2. **GNOME** — Open **Extensions** app, enable **User Themes** for top bar theme
 3. **KDE** — Open **Kvantum Manager**, select `Orchis-dark`. Enable **Blur** in Desktop Effects
-4. **NVIDIA laptops** — `sudo envycontrol -s integrated` + reboot for max battery
+4. **Steam + Gamemode** — Add to game Launch Options: `gamemoderun %command%` (hybrid NVIDIA laptop: `gamemoderun prime-run %command%`)
+5. **NVIDIA laptops** — `sudo envycontrol -s integrated` + reboot for max battery
 5. **BitLocker** — Suspend BitLocker in Windows before Secure Boot signing
 6. **Printer** — Log out/in after setup for `lp` group to take effect
