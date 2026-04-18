@@ -110,6 +110,9 @@ if [ "$LANG_SEL" = "es" ]; then
   S_M4="📦  MÓDULO 4: Software Opcional"
   S_IBR="Instalando navegador"; S_BRD="Navegador instalado"; S_BRS="Navegador: Mantuvo el predeterminado"
   S_IST="Instalando Steam y herramientas gaming"; S_STD="Gaming: Steam y utilidades instaladas"
+  S_GMD_I="Instalando Gamemode y librería 32-bits (gamemode + lib32-gamemode)"; S_GMD_D="Gaming: Gamemode instalado y activo"; S_GMD_A="Gamemode ya instalado"
+  S_GMD_E="Habilitando servicio gamemoded (usuario)"; S_GMD_S="Estado de Gamemode"; S_STM_GMD_N="Para optimizar juegos en Steam, añade en Propiedades del juego > Parámetros de lanzamiento: gamemoderun %command%"
+  S_STM_GMD_HYBRID_N="Gráficos híbridos NVIDIA detectados. Usa prime-run en Parámetros de lanzamiento: gamemoderun prime-run %command%"
   S_IBN="Instalando Bambu Studio (NVIDIA)"; S_IBA="Instalando Bambu Studio (Genérica)"
   S_BND="Impresión 3D: Bambu Studio (NVIDIA)"; S_BAD="Impresión 3D: Bambu Studio instalado"
   S_M5="🖨️  MÓDULO 5: Impresora Brother"
@@ -222,6 +225,9 @@ else
   S_M4="📦  MODULE 4: Optional Software"
   S_IBR="Installing browser"; S_BRD="Browser installed"; S_BRS="Browser: Kept default"
   S_IST="Installing Steam and gaming tools"; S_STD="Gaming: Steam and utilities installed"
+  S_GMD_I="Installing Gamemode and 32-bit library (gamemode + lib32-gamemode)"; S_GMD_D="Gaming: Gamemode installed and active"; S_GMD_A="Gamemode already installed"
+  S_GMD_E="Enabling gamemoded service (user)"; S_GMD_S="Gamemode status"; S_STM_GMD_N="To optimize games in Steam, go to game Properties > Launch Options and add: gamemoderun %command%"
+  S_STM_GMD_HYBRID_N="Hybrid NVIDIA graphics detected. Use prime-run in Launch Options: gamemoderun prime-run %command%"
   S_IBN="Installing Bambu Studio (NVIDIA)"; S_IBA="Installing Bambu Studio (Generic)"
   S_BND="3D Printing: Bambu Studio (NVIDIA)"; S_BAD="3D Printing: Bambu Studio installed"
   S_M5="🖨️  MODULE 5: Brother Printer"
@@ -370,10 +376,13 @@ detect_cpu() {
     fi
 }
 detect_gpu() {
-    GPU_VENDOR="unknown"
-    if lspci | grep -iE 'vga|3d|display' | grep -qi "nvidia"; then GPU_VENDOR="nvidia"
-    elif lspci | grep -iE 'vga|3d|display' | grep -qi "amd"; then GPU_VENDOR="amd"
-    elif lspci | grep -iE 'vga|3d|display' | grep -qi "intel"; then GPU_VENDOR="intel"
+    GPU_VENDOR="unknown"; GPU_IS_HYBRID=false
+    local _gpus; _gpus=$(lspci 2>/dev/null | grep -iE 'vga|3d|display')
+    if echo "$_gpus" | grep -qi "nvidia"; then
+        GPU_VENDOR="nvidia"
+        echo "$_gpus" | grep -qiE "intel|amd" && GPU_IS_HYBRID=true
+    elif echo "$_gpus" | grep -qi "amd"; then GPU_VENDOR="amd"
+    elif echo "$_gpus" | grep -qi "intel"; then GPU_VENDOR="intel"
     fi
 }
 detect_desktop; detect_cpu; detect_gpu
@@ -413,6 +422,7 @@ SUMMARY+=("$S_SYSUP_D")
 # === Default variable values (for module-only mode) ===
 BROWSER_PKG=""; BROWSER_CHOICE=3; INSTALL_STEAM="n"; INSTALL_BAMBU="n"; INSTALL_VSCODE="n"; INSTALL_CODEX="n"; INSTALL_CLAUDE_CODE="n"
 INSTALL_PRINTER="n"; SIGN_BOOTLOADER="n"; INSTALL_LIMINE_PATCH="n"; INSTALL_TAILSCALE_EXT="n"
+IS_LAPTOP=false
 INSTALL_LIMINE_THEME="n"
 PRINTER_MODEL="DCP-L2640DW"; PRINTER_IP="10.0.2.220"
 
@@ -812,7 +822,22 @@ echo -e "${GREEN}═════════════════════
 npm_ready=false
 if [ -n "$BROWSER_PKG" ]; then run_task "${S_IBR} ($BROWSER_PKG)" smart_install paru "$BROWSER_PKG"; SUMMARY+=("${S_BRD}: $BROWSER_PKG")
 else SUMMARY+=("$S_BRS"); fi
-if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then run_task "$S_IST" smart_install pacman cachyos-gaming-meta; SUMMARY+=("$S_STD"); fi
+if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then
+    run_task "$S_IST" smart_install pacman cachyos-gaming-meta
+    SUMMARY+=("$S_STD")
+    # Install / verify gamemode + 32-bit library
+    if pacman -Qq gamemode >/dev/null 2>&1 && pacman -Qq lib32-gamemode >/dev/null 2>&1; then
+        printf "${GREEN}[✔] ${S_GMD_A}${NC}\n"
+    else
+        run_task "$S_GMD_I" smart_install pacman gamemode lib32-gamemode
+        SUMMARY+=("$S_GMD_D")
+    fi
+    # Enable user-level gamemoded service
+    run_task "$S_GMD_E" systemctl --user enable --now gamemoded.service
+    # Show service status
+    echo -e "${BLUE}[ℹ] ${S_GMD_S}:${NC}"
+    gamemoded -s 2>/dev/null || true
+fi
 if [[ "$INSTALL_BAMBU" =~ $S_YN_RE ]]; then
     if [ "$GPU_VENDOR" = "nvidia" ]; then run_task "$S_IBN" smart_install paru bambustudio-nvidia-bin; SUMMARY+=("$S_BND")
     else run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD"); fi
@@ -917,5 +942,14 @@ if [ "$DESKTOP_ENV" = "gnome" ]; then
 elif [ "$DESKTOP_ENV" = "kde" ]; then
     echo -e " ${YELLOW}${S_KN}${NC}"; echo -e "    • ${S_K1}"; echo -e "    • ${S_K2}"
     echo -e "    • ${S_K3}"; echo -e "    • ${S_K4}"
+fi
+if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then
+    echo -e " ${YELLOW}🎮 STEAM + GAMEMODE:${NC}"
+    if $IS_LAPTOP && $GPU_IS_HYBRID; then
+        echo -e "    • ${S_STM_GMD_HYBRID_N}"
+    else
+        echo -e "    • ${S_STM_GMD_N}"
+    fi
+    echo ""
 fi
 echo ""; echo -e " ${YELLOW}${S_CMP}${NC}"; echo -e " ${DIM}${S_CLT}${NC}"; echo ""
