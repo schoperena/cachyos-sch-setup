@@ -65,7 +65,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_UPD="Actualización disponible"
   S_TS_Q="¿Instalar la extensión Tailscale Status para GNOME?"; S_TS_N="Gestionar conexiones Tailscale desde el escritorio."
   S_SUM="✅  RESUMEN DE SELECCIÓN"
-  S_L_DE="Escritorio"; S_L_CPU="CPU"; S_L_BRW="Navegador"; S_L_PRT="Impresora"; S_L_VSC="VS Code"
+  S_L_DE="Escritorio"; S_L_CPU="CPU"; S_L_GPU="GPU"; S_L_BRW="Navegador"; S_L_PRT="Impresora"; S_L_VSC="VS Code"
   S_YES="Sí"; S_NO="No"; S_NOINST="No instalar"
   S_CONFIRM="¿Todo correcto? Enter para continuar o Ctrl+C para cancelar..."
   S_YN="(s/N):"; S_YN_RE="^[Ss]$"; S_YN_Y="s"; S_ALR="Ya instalado"
@@ -114,6 +114,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_GMD_E="Habilitando servicio gamemoded (usuario)"; S_GMD_S="Estado de Gamemode"; S_STM_GMD_N="Para optimizar juegos en Steam, añade en Propiedades del juego > Parámetros de lanzamiento: gamemoderun %command%"
   S_STM_GMD_HYBRID_N="Gráficos híbridos NVIDIA detectados. Usa prime-run en Parámetros de lanzamiento: gamemoderun prime-run %command%"
   S_IBN="Instalando Bambu Studio (NVIDIA)"; S_IBA="Instalando Bambu Studio (Genérica)"
+  S_BMF="Fallo instalando Bambu Studio (NVIDIA), intentando versión Genérica"
   S_BND="Impresión 3D: Bambu Studio (NVIDIA)"; S_BAD="Impresión 3D: Bambu Studio instalado"
   S_M5="🖨️  MÓDULO 5: Impresora Brother"
   S_MLB="Habilitando repositorio multilib..."; S_MLS="Sincronizando multilib"; S_MLD="Multilib habilitado"
@@ -180,7 +181,7 @@ else
   S_UPD="Update available"
   S_TS_Q="Install Tailscale Status extension for GNOME?"; S_TS_N="Manage Tailscale connections from desktop."
   S_SUM="✅  SELECTION SUMMARY"
-  S_L_DE="Desktop"; S_L_CPU="CPU"; S_L_BRW="Browser"; S_L_PRT="Printer"
+  S_L_DE="Desktop"; S_L_CPU="CPU"; S_L_GPU="GPU"; S_L_BRW="Browser"; S_L_PRT="Printer"
   S_YES="Yes"; S_NO="No"; S_NOINST="Don't install"
   S_CONFIRM="All correct? Press Enter to continue or Ctrl+C to cancel..."
   S_YN="(y/N):"; S_YN_RE="^[Yy]$"; S_YN_Y="y"; S_ALR="Already installed"
@@ -229,6 +230,7 @@ else
   S_GMD_E="Enabling gamemoded service (user)"; S_GMD_S="Gamemode status"; S_STM_GMD_N="To optimize games in Steam, go to game Properties > Launch Options and add: gamemoderun %command%"
   S_STM_GMD_HYBRID_N="Hybrid NVIDIA graphics detected. Use prime-run in Launch Options: gamemoderun prime-run %command%"
   S_IBN="Installing Bambu Studio (NVIDIA)"; S_IBA="Installing Bambu Studio (Generic)"
+  S_BMF="Bambu Studio (NVIDIA) failed, trying Generic build"
   S_BND="3D Printing: Bambu Studio (NVIDIA)"; S_BAD="3D Printing: Bambu Studio installed"
   S_M5="🖨️  MODULE 5: Brother Printer"
   S_MLB="Enabling multilib repository..."; S_MLS="Syncing multilib"; S_MLD="Multilib enabled"
@@ -376,8 +378,10 @@ detect_cpu() {
     fi
 }
 detect_gpu() {
-    GPU_VENDOR="unknown"; GPU_IS_HYBRID=false
-    local _gpus; _gpus=$(lspci 2>/dev/null | grep -iE 'vga|3d|display')
+    GPU_VENDOR="unknown"; GPU_IS_HYBRID=false; GPU_MODEL_NAME=""
+    local _gpus
+    _gpus=$(lspci -nn 2>/dev/null | grep -iE 'vga compatible controller|3d controller|display controller')
+    GPU_MODEL_NAME=$(echo "$_gpus" | head -n1 | sed -E 's/^.*: //')
     if echo "$_gpus" | grep -qi "nvidia"; then
         GPU_VENDOR="nvidia"
         echo "$_gpus" | grep -qiE "intel|amd" && GPU_IS_HYBRID=true
@@ -405,6 +409,7 @@ echo -e "${DIM}  ${S_DET_DE}: ${BOLD}${DESKTOP_ENV^^}${NC}"
 echo -e "${DIM}  ${S_DET_CPU}: ${BOLD}${CPU_MODEL_NAME:-Unknown}${NC}"
 $CPU_IS_HYBRID && echo -e "${DIM}  ${S_ARCH_L}: ${BOLD}${S_HYBRID}${NC}"
 echo -e "${DIM}  ${S_DET_GPU}: ${BOLD}${GPU_VENDOR^^}${NC}"
+echo -e "${DIM}  ${S_L_GPU}: ${BOLD}${GPU_MODEL_NAME:-Unknown}${NC}"
 echo ""
 
 # === Sudo ===
@@ -539,6 +544,7 @@ echo -e "${BOLD}${GREEN}│           ${S_SUM}                       │${NC}"
 echo -e "${BOLD}${GREEN}╰───────────────────────────────────────────────────────────╯${NC}"
 echo -e "   ${S_L_DE}:        ${BOLD}${DESKTOP_ENV^^}${NC}"
 echo -e "   ${S_L_CPU}:           ${BOLD}${CPU_VENDOR^^}${NC} $($CPU_IS_HYBRID && echo "(${S_HYBRID})")"
+echo -e "   ${S_L_GPU}:           ${BOLD}${GPU_VENDOR^^}${NC} ${GPU_MODEL_NAME:+($GPU_MODEL_NAME)}"
 echo -e "   ${S_L_BRW}:       $_M_BRW"
 echo -e "   Steam:          $_M_STM"
 echo -e "   Bambu Studio:   $_M_BMB"
@@ -823,7 +829,7 @@ npm_ready=false
 if [ -n "$BROWSER_PKG" ]; then run_task "${S_IBR} ($BROWSER_PKG)" smart_install paru "$BROWSER_PKG"; SUMMARY+=("${S_BRD}: $BROWSER_PKG")
 else SUMMARY+=("$S_BRS"); fi
 if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then
-    run_task "$S_IST" smart_install pacman cachyos-gaming-meta
+    run_task "$S_IST" smart_install pacman steam cachyos-gaming-meta
     SUMMARY+=("$S_STD")
     # Install / verify gamemode + 32-bit library
     if pacman -Qq gamemode >/dev/null 2>&1 && pacman -Qq lib32-gamemode >/dev/null 2>&1; then
@@ -839,8 +845,15 @@ if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then
     gamemoded -s 2>/dev/null || true
 fi
 if [[ "$INSTALL_BAMBU" =~ $S_YN_RE ]]; then
-    if [ "$GPU_VENDOR" = "nvidia" ]; then run_task "$S_IBN" smart_install paru bambustudio-nvidia-bin; SUMMARY+=("$S_BND")
-    else run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD"); fi
+    if [ "$GPU_VENDOR" = "nvidia" ]; then
+        if run_task "$S_IBN" smart_install paru bambustudio-nvidia-bin; then
+            SUMMARY+=("$S_BND")
+        else
+            run_task "$S_BMF" smart_install paru bambustudio-bin && SUMMARY+=("$S_BAD")
+        fi
+    else
+        run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD")
+    fi
 fi
 if [[ "$INSTALL_VSCODE" =~ $S_YN_RE ]]; then run_task "$S_IVC" smart_install paru visual-studio-code-bin; SUMMARY+=("$S_VCD"); fi
 if [[ "$INSTALL_CODEX" =~ $S_YN_RE ]]; then
