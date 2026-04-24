@@ -113,8 +113,8 @@ if [ "$LANG_SEL" = "es" ]; then
   S_GMD_I="Instalando Gamemode y librería 32-bits (gamemode + lib32-gamemode)"; S_GMD_D="Gaming: Gamemode instalado y activo"; S_GMD_A="Gamemode ya instalado"
   S_GMD_E="Habilitando servicio gamemoded (usuario)"; S_GMD_S="Estado de Gamemode"; S_STM_GMD_N="Para optimizar juegos en Steam, añade en Propiedades del juego > Parámetros de lanzamiento: gamemoderun %command%"
   S_STM_GMD_HYBRID_N="Gráficos híbridos NVIDIA detectados. Usa prime-run en Parámetros de lanzamiento: gamemoderun prime-run %command%"
-  S_IBN="Instalando Bambu Studio (NVIDIA)"; S_IBA="Instalando Bambu Studio (Genérica)"
-  S_BMF="Fallo instalando Bambu Studio (NVIDIA), intentando versión Genérica"
+  S_IBN="Instalando Bambu Studio (NVIDIA, alternativa)"; S_IBA="Instalando Bambu Studio (Genérica)"
+  S_BMF="Fallo instalando Bambu Studio (Genérica), intentando versión NVIDIA"
   S_BND="Impresión 3D: Bambu Studio (NVIDIA)"; S_BAD="Impresión 3D: Bambu Studio instalado"
   S_M5="🖨️  MÓDULO 5: Impresora Brother"
   S_MLB="Habilitando repositorio multilib..."; S_MLS="Sincronizando multilib"; S_MLD="Multilib habilitado"
@@ -229,8 +229,8 @@ else
   S_GMD_I="Installing Gamemode and 32-bit library (gamemode + lib32-gamemode)"; S_GMD_D="Gaming: Gamemode installed and active"; S_GMD_A="Gamemode already installed"
   S_GMD_E="Enabling gamemoded service (user)"; S_GMD_S="Gamemode status"; S_STM_GMD_N="To optimize games in Steam, go to game Properties > Launch Options and add: gamemoderun %command%"
   S_STM_GMD_HYBRID_N="Hybrid NVIDIA graphics detected. Use prime-run in Launch Options: gamemoderun prime-run %command%"
-  S_IBN="Installing Bambu Studio (NVIDIA)"; S_IBA="Installing Bambu Studio (Generic)"
-  S_BMF="Bambu Studio (NVIDIA) failed, trying Generic build"
+  S_IBN="Installing Bambu Studio (NVIDIA fallback)"; S_IBA="Installing Bambu Studio (Generic)"
+  S_BMF="Bambu Studio (Generic) failed, trying NVIDIA build"
   S_BND="3D Printing: Bambu Studio (NVIDIA)"; S_BAD="3D Printing: Bambu Studio installed"
   S_M5="🖨️  MODULE 5: Brother Printer"
   S_MLB="Enabling multilib repository..."; S_MLS="Syncing multilib"; S_MLD="Multilib enabled"
@@ -493,14 +493,13 @@ if [[ "$INSTALL_PRINTER" =~ $S_YN_RE ]]; then
     read -p "   ${S_PRT_IQ}: " INPUT_IP </dev/tty; PRINTER_IP=${INPUT_IP:-$PRINTER_IP}
 fi; echo ""
 
+echo -e "${CYAN}5. ${S_SB_Q}${NC}"
+echo -e "${DIM}   ${S_SB_N}${NC}"
 if pacman -Qq sbctl >/dev/null 2>&1; then
-    echo -e "${CYAN}5. ${S_SB_Q}${NC} ${DIM}(${S_ALR})${NC}"
-    SIGN_BOOTLOADER="n"; _M_SB="${S_ALR}"
-else
-    echo -e "${CYAN}5. ${S_SB_Q}${NC}"; echo -e "${DIM}   ${S_SB_N}${NC}"
-    read -p "   ${S_YN} " SIGN_BOOTLOADER </dev/tty; SIGN_BOOTLOADER=${SIGN_BOOTLOADER:-n}; echo ""
-    _M_SB=$([[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+    echo -e "${DIM}   sbctl: ${S_ALR}${NC}"
 fi
+read -p "   ${S_YN} " SIGN_BOOTLOADER </dev/tty; SIGN_BOOTLOADER=${SIGN_BOOTLOADER:-n}; echo ""
+_M_SB=$([[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 
 if [ -f "/usr/local/bin/limine-patch-cmdline" ]; then
     TMP_LM=$(mktemp)
@@ -846,10 +845,10 @@ if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then
 fi
 if [[ "$INSTALL_BAMBU" =~ $S_YN_RE ]]; then
     if [ "$GPU_VENDOR" = "nvidia" ]; then
-        if run_task "$S_IBN" smart_install paru bambustudio-nvidia-bin; then
-            SUMMARY+=("$S_BND")
+        if run_task "$S_IBA" smart_install paru bambustudio-bin; then
+            SUMMARY+=("$S_BAD")
         else
-            run_task "$S_BMF" smart_install paru bambustudio-bin && SUMMARY+=("$S_BAD")
+            run_task "$S_BMF" smart_install paru bambustudio-nvidia-bin && SUMMARY+=("$S_BND")
         fi
     else
         run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD")
