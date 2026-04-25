@@ -22,7 +22,7 @@ if [ "$RUN_MODULE" = "--help" ] || [ "$RUN_MODULE" = "-h" ]; then
     echo "  base         Terminal, themes, fonts, Fish, OMF"
     echo "  desktop      GNOME/KDE customization and extensions"
     echo "  hardware     CPU/GPU optimization and power management"
-    echo "  software     Browser, Steam, Bambu Studio, VS Code"
+    echo "  software     Browser, Steam, Bambu Studio, VLC, Spotify, KeePassXC, VS Code"
     echo "  printer      Brother printer installation"
     echo "  secureboot   Secure Boot signing with sbctl"
     echo "  limine       Limine kernel cmdline patch"
@@ -50,6 +50,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_BRW_Q="¿Qué navegador web prefieres instalar?"; S_BRW_3="Ninguno / Mantener el actual"
   S_SEL="Selecciona"; S_DEF="default"
   S_STM_Q="¿Instalar Steam (y meta-paquete gaming)?"; S_BMB_Q="¿Instalar Bambu Studio (impresión 3D)?"
+  S_VLC_Q="¿Instalar VLC?"; S_SPOTIFY_Q="¿Instalar Spotify (AUR)?"; S_KPX_Q="¿Instalar KeePassXC (Flatpak, usuario)?"
   S_VSC_Q="¿Instalar Visual Studio Code?"
   S_IVC="Instalando Visual Studio Code"; S_VCD="IDE: Visual Studio Code instalado"
   S_CDX_Q="¿Instalar Codex CLI (npm)?"; S_CDX_I="Instalando Codex CLI (npm)"; S_CDX_D="CLI: Codex instalado"; S_CDX_A="Codex CLI ya instalado"
@@ -68,7 +69,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_L_DE="Escritorio"; S_L_CPU="CPU"; S_L_GPU="GPU"; S_L_BRW="Navegador"; S_L_PRT="Impresora"; S_L_VSC="VS Code"
   S_YES="Sí"; S_NO="No"; S_NOINST="No instalar"
   S_CONFIRM="¿Todo correcto? Enter para continuar o Ctrl+C para cancelar..."
-  S_YN="(s/N):"; S_YN_RE="^[Ss]$"; S_YN_Y="s"; S_ALR="Ya instalado"
+  S_YN="(s/N):"; S_YN_DY="(S/n):"; S_YN_RE="^[Ss]$"; S_YN_Y="s"; S_ALR="Ya instalado"
   S_M1="⚙️  MÓDULO 1: Setup Base del Sistema"
   S_CLK="Ajustando el reloj local para Dual Boot"; S_CLK_D="Reloj sincronizado para Dual Boot"
   S_BASE="Instalando herramientas base, temas y Nerd Fonts"; S_BASE_D="Herramientas base instaladas/verificadas"
@@ -113,9 +114,12 @@ if [ "$LANG_SEL" = "es" ]; then
   S_GMD_I="Instalando Gamemode y librería 32-bits (gamemode + lib32-gamemode)"; S_GMD_D="Gaming: Gamemode instalado y activo"; S_GMD_A="Gamemode ya instalado"
   S_GMD_E="Habilitando servicio gamemoded (usuario)"; S_GMD_S="Estado de Gamemode"; S_STM_GMD_N="Para optimizar juegos en Steam, añade en Propiedades del juego > Parámetros de lanzamiento: gamemoderun %command%"
   S_STM_GMD_HYBRID_N="Gráficos híbridos NVIDIA detectados. Usa prime-run en Parámetros de lanzamiento: gamemoderun prime-run %command%"
-  S_IBN="Instalando Bambu Studio (NVIDIA, alternativa)"; S_IBA="Instalando Bambu Studio (Genérica)"
-  S_BMF="Fallo instalando Bambu Studio (Genérica), intentando versión NVIDIA"
-  S_BND="Impresión 3D: Bambu Studio (NVIDIA)"; S_BAD="Impresión 3D: Bambu Studio instalado"
+  S_FLT_I="Instalando Flatpak"; S_FHB_I="Configurando repositorio Flathub"
+  S_IBA="Instalando Bambu Studio (Flatpak)"
+  S_BAD="Impresión 3D: Bambu Studio instalado desde Flathub"
+  S_VLC_I="Instalando VLC"; S_VLC_D="Multimedia: VLC instalado"
+  S_SPOTIFY_I="Instalando Spotify (AUR)"; S_SPOTIFY_D="Multimedia: Spotify instalado"
+  S_KPX_I="Instalando KeePassXC (Flatpak usuario)"; S_KPX_D="Seguridad: KeePassXC instalado"
   S_M5="🖨️  MÓDULO 5: Impresora Brother"
   S_MLB="Habilitando repositorio multilib..."; S_MLS="Sincronizando multilib"; S_MLD="Multilib habilitado"
   S_MLF="No se pudo habilitar multilib."
@@ -166,6 +170,7 @@ else
   S_BRW_Q="Which web browser do you prefer?"; S_BRW_3="None / Keep current"
   S_SEL="Select"; S_DEF="default"
   S_STM_Q="Install Steam (and gaming meta-package)?"; S_BMB_Q="Install Bambu Studio (3D printing)?"
+  S_VLC_Q="Install VLC?"; S_SPOTIFY_Q="Install Spotify (AUR)?"; S_KPX_Q="Install KeePassXC (Flatpak, user)?"
   S_VSC_Q="Install Visual Studio Code?"
   S_IVC="Installing Visual Studio Code"; S_VCD="IDE: Visual Studio Code installed"
   S_CDX_Q="Install Codex CLI (npm)?"; S_CDX_I="Installing Codex CLI (npm)"; S_CDX_D="CLI: Codex installed"; S_CDX_A="Codex CLI already installed"
@@ -184,7 +189,7 @@ else
   S_L_DE="Desktop"; S_L_CPU="CPU"; S_L_GPU="GPU"; S_L_BRW="Browser"; S_L_PRT="Printer"
   S_YES="Yes"; S_NO="No"; S_NOINST="Don't install"
   S_CONFIRM="All correct? Press Enter to continue or Ctrl+C to cancel..."
-  S_YN="(y/N):"; S_YN_RE="^[Yy]$"; S_YN_Y="y"; S_ALR="Already installed"
+  S_YN="(y/N):"; S_YN_DY="(Y/n):"; S_YN_RE="^[Yy]$"; S_YN_Y="y"; S_ALR="Already installed"
   S_M1="⚙️  MODULE 1: Base System Setup"
   S_CLK="Adjusting local clock for Dual Boot"; S_CLK_D="Hardware clock synced for Dual Boot"
   S_BASE="Installing base tools, themes and Nerd Fonts"; S_BASE_D="Base tools installed/verified"
@@ -229,9 +234,12 @@ else
   S_GMD_I="Installing Gamemode and 32-bit library (gamemode + lib32-gamemode)"; S_GMD_D="Gaming: Gamemode installed and active"; S_GMD_A="Gamemode already installed"
   S_GMD_E="Enabling gamemoded service (user)"; S_GMD_S="Gamemode status"; S_STM_GMD_N="To optimize games in Steam, go to game Properties > Launch Options and add: gamemoderun %command%"
   S_STM_GMD_HYBRID_N="Hybrid NVIDIA graphics detected. Use prime-run in Launch Options: gamemoderun prime-run %command%"
-  S_IBN="Installing Bambu Studio (NVIDIA fallback)"; S_IBA="Installing Bambu Studio (Generic)"
-  S_BMF="Bambu Studio (Generic) failed, trying NVIDIA build"
-  S_BND="3D Printing: Bambu Studio (NVIDIA)"; S_BAD="3D Printing: Bambu Studio installed"
+  S_FLT_I="Installing Flatpak"; S_FHB_I="Configuring Flathub repository"
+  S_IBA="Installing Bambu Studio (Flatpak)"
+  S_BAD="3D Printing: Bambu Studio installed from Flathub"
+  S_VLC_I="Installing VLC"; S_VLC_D="Multimedia: VLC installed"
+  S_SPOTIFY_I="Installing Spotify (AUR)"; S_SPOTIFY_D="Multimedia: Spotify installed"
+  S_KPX_I="Installing KeePassXC (Flatpak user)"; S_KPX_D="Security: KeePassXC installed"
   S_M5="🖨️  MODULE 5: Brother Printer"
   S_MLB="Enabling multilib repository..."; S_MLS="Syncing multilib"; S_MLD="Multilib enabled"
   S_MLF="Could not enable multilib automatically."
@@ -329,6 +337,11 @@ prompt_optional_cmd_install() {
     fi
 }
 
+answer_is_yes_default() {
+    local answer="$1"
+    [ -z "$answer" ] || [[ "$answer" =~ $S_YN_RE ]]
+}
+
 ensure_local_bin_path() {
     mkdir -p "$HOME/.config/fish/conf.d"
     grep -qF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.profile" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.profile"
@@ -345,6 +358,12 @@ smart_install() {
     done
     [ ${#m[@]} -eq 0 ] && return 0
     [ "$tool" = "paru" ] && paru -S --noconfirm --needed "${m[@]}" || sudo pacman -S --noconfirm --needed "${m[@]}"
+}
+ensure_flathub() {
+    smart_install pacman flatpak && sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+}
+ensure_user_flathub() {
+    ensure_flathub && flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 }
 install_gnome_extension() {
     local uuid="$1" gv; gv=$(gnome-shell --version 2>/dev/null | grep -oP '\d+' | head -1)
@@ -425,7 +444,7 @@ fi
 SUMMARY+=("$S_SYSUP_D")
 
 # === Default variable values (for module-only mode) ===
-BROWSER_PKG=""; BROWSER_CHOICE=3; INSTALL_STEAM="n"; INSTALL_BAMBU="n"; INSTALL_VSCODE="n"; INSTALL_CODEX="n"; INSTALL_CLAUDE_CODE="n"
+BROWSER_PKG=""; BROWSER_CHOICE=3; INSTALL_STEAM="n"; INSTALL_BAMBU="${S_YN_Y}"; INSTALL_VLC="${S_YN_Y}"; INSTALL_SPOTIFY="n"; INSTALL_KEEPASSXC="n"; INSTALL_VSCODE="n"; INSTALL_CODEX="n"; INSTALL_CLAUDE_CODE="n"
 INSTALL_PRINTER="n"; SIGN_BOOTLOADER="n"; INSTALL_LIMINE_PATCH="n"; INSTALL_TAILSCALE_EXT="n"
 IS_LAPTOP=false
 INSTALL_LIMINE_THEME="n"
@@ -465,24 +484,48 @@ else
     _M_STM=$([[ "$INSTALL_STEAM" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 fi
 
-if pacman -Qq bambustudio-bin >/dev/null 2>&1 || pacman -Qq bambustudio-nvidia-bin >/dev/null 2>&1; then
+if flatpak info com.bambulab.BambuStudio >/dev/null 2>&1 || pacman -Qq bambustudio-bin >/dev/null 2>&1 || pacman -Qq bambustudio-nvidia-bin >/dev/null 2>&1; then
     echo -e "${CYAN}3. ${S_BMB_Q}${NC} ${DIM}(${S_ALR})${NC}"
     INSTALL_BAMBU="n"; _M_BMB="${S_ALR}"
 else
-    echo -e "${CYAN}3. ${S_BMB_Q}${NC}"; read -p "   ${S_YN} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-n}; echo ""
-    _M_BMB=$([[ "$INSTALL_BAMBU" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+    echo -e "${CYAN}3. ${S_BMB_Q}${NC}"; read -p "   ${S_YN_DY} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-$S_YN_Y}; echo ""
+    _M_BMB=$(answer_is_yes_default "$INSTALL_BAMBU" && echo "$S_YES" || echo "$S_NO")
+fi
+
+if pacman -Qq vlc >/dev/null 2>&1; then
+    echo -e "${CYAN}3b. ${S_VLC_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    INSTALL_VLC="n"; _M_VLC="${S_ALR}"
+else
+    echo -e "${CYAN}3b. ${S_VLC_Q}${NC}"; read -p "   ${S_YN_DY} " INSTALL_VLC </dev/tty; INSTALL_VLC=${INSTALL_VLC:-$S_YN_Y}; echo ""
+    _M_VLC=$(answer_is_yes_default "$INSTALL_VLC" && echo "$S_YES" || echo "$S_NO")
+fi
+
+if pacman -Qq spotify >/dev/null 2>&1; then
+    echo -e "${CYAN}3c. ${S_SPOTIFY_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    INSTALL_SPOTIFY="n"; _M_SPOTIFY="${S_ALR}"
+else
+    echo -e "${CYAN}3c. ${S_SPOTIFY_Q}${NC}"; read -p "   ${S_YN} " INSTALL_SPOTIFY </dev/tty; INSTALL_SPOTIFY=${INSTALL_SPOTIFY:-n}; echo ""
+    _M_SPOTIFY=$([[ "$INSTALL_SPOTIFY" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+fi
+
+if flatpak --user info org.keepassxc.KeePassXC >/dev/null 2>&1 || command -v keepassxc >/dev/null 2>&1; then
+    echo -e "${CYAN}3d. ${S_KPX_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    INSTALL_KEEPASSXC="n"; _M_KPX="${S_ALR}"
+else
+    echo -e "${CYAN}3d. ${S_KPX_Q}${NC}"; read -p "   ${S_YN} " INSTALL_KEEPASSXC </dev/tty; INSTALL_KEEPASSXC=${INSTALL_KEEPASSXC:-n}; echo ""
+    _M_KPX=$([[ "$INSTALL_KEEPASSXC" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 fi
 
 if pacman -Qq visual-studio-code-bin >/dev/null 2>&1; then
-    echo -e "${CYAN}3b. ${S_VSC_Q}${NC} ${DIM}(${S_ALR})${NC}"
+    echo -e "${CYAN}3e. ${S_VSC_Q}${NC} ${DIM}(${S_ALR})${NC}"
     INSTALL_VSCODE="n"; _M_VSC="${S_ALR}"
 else
-    echo -e "${CYAN}3b. ${S_VSC_Q}${NC}"; read -p "   ${S_YN} " INSTALL_VSCODE </dev/tty; INSTALL_VSCODE=${INSTALL_VSCODE:-n}; echo ""
+    echo -e "${CYAN}3e. ${S_VSC_Q}${NC}"; read -p "   ${S_YN} " INSTALL_VSCODE </dev/tty; INSTALL_VSCODE=${INSTALL_VSCODE:-n}; echo ""
     _M_VSC=$([[ "$INSTALL_VSCODE" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
 fi
 
-prompt_optional_cmd_install "codex" "$S_CDX_Q" "INSTALL_CODEX" "3c." "_M_CDX"
-prompt_optional_cmd_install "claude" "$S_CLD_Q" "INSTALL_CLAUDE_CODE" "3d." "_M_CLD"
+prompt_optional_cmd_install "codex" "$S_CDX_Q" "INSTALL_CODEX" "3f." "_M_CDX"
+prompt_optional_cmd_install "claude" "$S_CLD_Q" "INSTALL_CLAUDE_CODE" "3g." "_M_CLD"
 
 echo -e "${CYAN}4. ${S_PRT_Q}${NC}"; read -p "   ${S_YN} " INSTALL_PRINTER </dev/tty; INSTALL_PRINTER=${INSTALL_PRINTER:-n}
 PRINTER_MODEL="DCP-L2640DW"; PRINTER_IP="10.0.2.220"
@@ -547,6 +590,9 @@ echo -e "   ${S_L_GPU}:           ${BOLD}${GPU_VENDOR^^}${NC} ${GPU_MODEL_NAME:+
 echo -e "   ${S_L_BRW}:       $_M_BRW"
 echo -e "   Steam:          $_M_STM"
 echo -e "   Bambu Studio:   $_M_BMB"
+echo -e "   VLC:            $_M_VLC"
+echo -e "   Spotify:        $_M_SPOTIFY"
+echo -e "   KeePassXC:      $_M_KPX"
 echo -e "   VS Code:        $_M_VSC"
 echo -e "   Codex CLI:      $_M_CDX"
 echo -e "   Claude Code:    $_M_CLD"
@@ -582,10 +628,28 @@ elif [ "$RUN_MODULE" = "software" ]; then
         echo -e "${CYAN}${S_STM_Q}${NC}"; read -p "   ${S_YN} " INSTALL_STEAM </dev/tty; INSTALL_STEAM=${INSTALL_STEAM:-n}
     fi
     
-    if pacman -Qq bambustudio-bin >/dev/null 2>&1 || pacman -Qq bambustudio-nvidia-bin >/dev/null 2>&1; then
+    if flatpak info com.bambulab.BambuStudio >/dev/null 2>&1 || pacman -Qq bambustudio-bin >/dev/null 2>&1 || pacman -Qq bambustudio-nvidia-bin >/dev/null 2>&1; then
         echo -e "${CYAN}${S_BMB_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_BAMBU="n"
     else
-        echo -e "${CYAN}${S_BMB_Q}${NC}"; read -p "   ${S_YN} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-n}
+        echo -e "${CYAN}${S_BMB_Q}${NC}"; read -p "   ${S_YN_DY} " INSTALL_BAMBU </dev/tty; INSTALL_BAMBU=${INSTALL_BAMBU:-$S_YN_Y}
+    fi
+
+    if pacman -Qq vlc >/dev/null 2>&1; then
+        echo -e "${CYAN}${S_VLC_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_VLC="n"
+    else
+        echo -e "${CYAN}${S_VLC_Q}${NC}"; read -p "   ${S_YN_DY} " INSTALL_VLC </dev/tty; INSTALL_VLC=${INSTALL_VLC:-$S_YN_Y}
+    fi
+
+    if pacman -Qq spotify >/dev/null 2>&1; then
+        echo -e "${CYAN}${S_SPOTIFY_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_SPOTIFY="n"
+    else
+        echo -e "${CYAN}${S_SPOTIFY_Q}${NC}"; read -p "   ${S_YN} " INSTALL_SPOTIFY </dev/tty; INSTALL_SPOTIFY=${INSTALL_SPOTIFY:-n}
+    fi
+
+    if flatpak --user info org.keepassxc.KeePassXC >/dev/null 2>&1 || command -v keepassxc >/dev/null 2>&1; then
+        echo -e "${CYAN}${S_KPX_Q}${NC} ${DIM}(${S_ALR})${NC}"; INSTALL_KEEPASSXC="n"
+    else
+        echo -e "${CYAN}${S_KPX_Q}${NC}"; read -p "   ${S_YN} " INSTALL_KEEPASSXC </dev/tty; INSTALL_KEEPASSXC=${INSTALL_KEEPASSXC:-n}
     fi
 
     if pacman -Qq visual-studio-code-bin >/dev/null 2>&1; then
@@ -843,16 +907,17 @@ if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then
     echo -e "${BLUE}[ℹ] ${S_GMD_S}:${NC}"
     gamemoded -s 2>/dev/null || true
 fi
-if [[ "$INSTALL_BAMBU" =~ $S_YN_RE ]]; then
-    if [ "$GPU_VENDOR" = "nvidia" ]; then
-        if run_task "$S_IBA" smart_install paru bambustudio-bin; then
-            SUMMARY+=("$S_BAD")
-        else
-            run_task "$S_BMF" smart_install paru bambustudio-nvidia-bin && SUMMARY+=("$S_BND")
-        fi
-    else
-        run_task "$S_IBA" smart_install paru bambustudio-bin; SUMMARY+=("$S_BAD")
-    fi
+if answer_is_yes_default "$INSTALL_BAMBU"; then
+    run_task "$S_FLT_I / $S_FHB_I" ensure_flathub
+    run_task "$S_IBA" flatpak install -y flathub com.bambulab.BambuStudio
+    SUMMARY+=("$S_BAD")
+fi
+if answer_is_yes_default "$INSTALL_VLC"; then run_task "$S_VLC_I" smart_install pacman vlc; SUMMARY+=("$S_VLC_D"); fi
+if [[ "$INSTALL_SPOTIFY" =~ $S_YN_RE ]]; then run_task "$S_SPOTIFY_I" smart_install paru spotify; SUMMARY+=("$S_SPOTIFY_D"); fi
+if [[ "$INSTALL_KEEPASSXC" =~ $S_YN_RE ]]; then
+    run_task "$S_FLT_I / $S_FHB_I" ensure_user_flathub
+    run_task "$S_KPX_I" flatpak install --user -y flathub org.keepassxc.KeePassXC
+    SUMMARY+=("$S_KPX_D")
 fi
 if [[ "$INSTALL_VSCODE" =~ $S_YN_RE ]]; then run_task "$S_IVC" smart_install paru visual-studio-code-bin; SUMMARY+=("$S_VCD"); fi
 if [[ "$INSTALL_CODEX" =~ $S_YN_RE ]]; then

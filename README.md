@@ -29,7 +29,7 @@ chmod +x cachyos-mega-setup.sh
 ./cachyos-mega-setup.sh base         # Terminal, themes, fonts, Fish, OMF
 ./cachyos-mega-setup.sh desktop      # GNOME/KDE customization and extensions
 ./cachyos-mega-setup.sh hardware     # CPU/GPU optimization & power management
-./cachyos-mega-setup.sh software     # Browser, Steam, Bambu Studio, VS Code, Codex CLI, Claude Code
+./cachyos-mega-setup.sh software     # Browser, Steam, Bambu Studio, VLC, Spotify, KeePassXC, VS Code, Codex CLI, Claude Code
 ./cachyos-mega-setup.sh printer      # Brother printer installation
 ./cachyos-mega-setup.sh secureboot   # Secure Boot signing with sbctl
 ./cachyos-mega-setup.sh limine       # Limine kernel cmdline patch
@@ -83,7 +83,7 @@ chmod +x cachyos-mega-setup.sh
 | Intel CPU | `intel-media-driver` + `libva-intel-driver` for VA-API |
 | Intel 12th gen+ | + `thermald` for P-core/E-core thermal management |
 | AMD CPU | Verifies `mesa` (VA-API included since mesa absorbed the old packages) |
-| NVIDIA GPU | Uses NVIDIA-specific builds, allows envycontrol on laptops |
+| NVIDIA GPU | Enables NVIDIA laptop tooling with `envycontrol` |
 | Intel/AMD CPU | Ensures matching microcode package (`intel-ucode` / `amd-ucode`) |
 | Multicore systems | Enables `irqbalance` for interrupt distribution |
 
@@ -94,12 +94,15 @@ chmod +x cachyos-mega-setup.sh
 - `envycontrol` for NVIDIA Optimus laptops
 - Intel hybrid laptops get extra profile notes (`thermald + irqbalance + microcode`)
 
-### Module 4: `software` — Optional Software (All Optional)
+### Module 4: `software` — Optional Software
 
-All packages are asked before installation:
+All packages are asked before installation. Bambu Studio and VLC default to yes:
 - 🌐 Browser (Google Chrome / Brave)
 - 🎮 Steam + `cachyos-gaming-meta` + `gamemode` / `lib32-gamemode` (enables `gamemoded.service` automatically)
-- 🖨️ Bambu Studio (auto-detects NVIDIA)
+- 🖨️ Bambu Studio via Flatpak from Flathub (`com.bambulab.BambuStudio`)
+- 🎬 VLC from repos
+- 🎵 Spotify from AUR (optional)
+- 🔐 KeePassXC via user Flatpak from Flathub (`org.keepassxc.KeePassXC`, optional)
 - 💻 Visual Studio Code
 - 🤖 Codex CLI (npm: `@openai/codex`, user prefix `~/.local`)
 - 🧠 Claude Code (npm: `@anthropic-ai/claude-code`, user prefix `~/.local`)
