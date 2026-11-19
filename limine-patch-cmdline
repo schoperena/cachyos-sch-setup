@@ -1,94 +1,136 @@
 #!/usr/bin/env bash
 # =============================================================================
 # limine-patch-cmdline
-# Reinyecta parámetros de kernel personalizados en /boot/limine.conf
-# tras actualizaciones del sistema vía pacman hook.
+# Agrega parámetros de kernel persistentes en CachyOS + Limine usando la
+# configuración oficial de limine-entry-tool (/etc/default/limine), y añade
+# una entrada de Windows si su bootloader está en la misma ESP.
 #
-# Instalación:
-#   sudo cp limine-patch-cmdline /usr/local/bin/limine-patch-cmdline
-#   sudo chmod +x /usr/local/bin/limine-patch-cmdline
-#   sudo cp limine-cmdline-patch.hook /etc/pacman.d/hooks/limine-cmdline-patch.hook
+# Ya no hace falta un hook de pacman: limine-update regenera limine.conf a
+# partir de /etc/default/limine en cada actualización de kernel, así que los
+# parámetros quedan protegidos por diseño.
+#
+# Uso:
+#   sudo limine-patch-cmdline
 # =============================================================================
 
 set -euo pipefail
 
-LIMINE_CONF="/boot/limine.conf"
-CURRENT_ROOT_UUID="$(findmnt -no UUID / 2>/dev/null || true)"
-WINDOWS_EFI_PATH=""
-for candidate in \
-    "/boot/EFI/Microsoft/Boot/bootmgfw.efi" \
-    "/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi" \
-    "/efi/EFI/Microsoft/Boot/bootmgfw.efi"; do
-    if [[ -f "$candidate" ]]; then
-        WINDOWS_EFI_PATH="$candidate"
-        break
-    fi
-done
+DEFAULT_CONF="/etc/default/limine"
+KERNEL_CMDLINE_FILE="/etc/kernel/cmdline"
+DEFAULT_LINE_RE='^[[:space:]]*KERNEL_CMDLINE\[default\]\+?='
 
-# Parámetros que deben estar siempre presentes en cada línea CMDLINE.
-# Agrega aquí cualquier otro parámetro que quieras proteger.
+log() { echo "[limine-patch] $*"; }
+die() { echo "[limine-patch] ERROR: $*" >&2; exit 1; }
+
+[[ $EUID -eq 0 ]] || die "Ejecuta como root (sudo)."
+command -v limine-update >/dev/null 2>&1 \
+    || die "limine-update no encontrado. Este script requiere Limine de CachyOS (limine-mkinitcpio-hook)."
+
+# Parámetros que deben estar siempre presentes.
 REQUIRED_PARAMS=(
     "usbcore.autosuspend=-1"
 )
-
-# Auto-detect hardware for GPU-specific parameters
-if lspci | grep -qi "nvidia"; then
-    echo "[limine-patch] NVIDIA GPU detected. Adding nvidia_drm optimizations."
-    REQUIRED_PARAMS+=(
-        "nvidia_drm.modeset=1"
-        "nvidia_drm.fbdev=1"
-    )
+if lspci 2>/dev/null | grep -iE 'vga|3d|display' | grep -qi nvidia; then
+    log "GPU NVIDIA detectada: se agregan parámetros nvidia_drm."
+    REQUIRED_PARAMS+=("nvidia_drm.modeset=1" "nvidia_drm.fbdev=1")
 fi
 
-if lspci | grep -qi "vga.*amd"; then
-    echo "[limine-patch] AMD GPU detected. Adding amd_pstate parameter."
-    REQUIRED_PARAMS+=(
-        "amd_pstate=active"
-    )
-fi
-
-[[ $EUID -ne 0 ]] && { echo "Ejecuta como root."; exit 1; }
-[[ ! -f "$LIMINE_CONF" ]] && { echo "No se encontró $LIMINE_CONF"; exit 1; }
-
-tmpfile=$(mktemp)
-modified=0
-
-while IFS= read -r line; do
-    if echo "$line" | grep -qiE '^\s*(kernel_)?cmdline\s*[:=]'; then
-        if [[ -n "$CURRENT_ROOT_UUID" ]] && echo "$line" | grep -qE 'root=UUID=[^[:space:]]+'; then
-            line="$(echo "$line" | sed -E "s#root=UUID=[^[:space:]]+#root=UUID=${CURRENT_ROOT_UUID}#")"
-            modified=1
-            echo "[limine-patch] root=UUID actualizado a ${CURRENT_ROOT_UUID}" >&2
-        fi
-        for param in "${REQUIRED_PARAMS[@]}"; do
-            if ! echo "$line" | grep -qF "$param"; then
-                line="$line $param"
-                echo "[limine-patch] Agregado: '$param'" >&2
-                modified=1
+# Agrega los parámetros que falten a la última línea de "$1" que cumpla "$2".
+# Revisa todas las líneas que cumplen el patrón para no duplicar parámetros.
+# Devuelve 0 si modificó el archivo, 1 si no hacía falta, 2 si no hay línea.
+patch_cmdline_file() {
+    local file="$1" pattern="$2" existing last new p changed=1
+    existing="$(grep -E "$pattern" "$file" 2>/dev/null || true)"
+    [[ -n "$existing" ]] || return 2
+    last="$(printf '%s\n' "$existing" | tail -n1)"
+    new="$last"
+    # Quitar el prefijo "KERNEL_CMDLINE[...]+=", comillas y saltos de línea para comparar
+    existing="$(printf '%s\n' "$existing" | sed -E 's/^[[:space:]]*KERNEL_CMDLINE\[[^]]*\]\+?=/ /')"
+    existing=" ${existing//\"/ } "
+    existing="${existing//$'\n'/ }"
+    for p in "${REQUIRED_PARAMS[@]}"; do
+        if [[ "$existing" != *" $p "* ]]; then
+            if [[ "$new" =~ \"[[:space:]]*$ ]]; then
+                new="${new%\"*} $p\""
+            else
+                new="$new $p"
             fi
-        done
+            log "Agregado: '$p'"
+            changed=0
+        fi
+    done
+    if [[ $changed -eq 0 ]]; then
+        cp -a "$file" "${file}.bak"
+        OLD="$last" NEW="$new" awk '
+            { lines[NR] = $0; if ($0 == ENVIRON["OLD"]) idx = NR }
+            END { for (i = 1; i <= NR; i++) print (i == idx ? ENVIRON["NEW"] : lines[i]) }
+        ' "${file}.bak" > "$file"
+        log "$file actualizado (backup en ${file}.bak)."
     fi
-    echo "$line"
-done < "$LIMINE_CONF" > "$tmpfile"
+    return $changed
+}
 
-if [[ -n "$WINDOWS_EFI_PATH" ]] && ! grep -qiE '^\s*:\s*windows' "$tmpfile"; then
-    windows_rel_path="${WINDOWS_EFI_PATH#/boot}"
-    windows_rel_path="${windows_rel_path#/efi}"
-    cat >> "$tmpfile" <<EOF
-
-:Windows
-    protocol: efi
-    path: boot():${windows_rel_path}
-EOF
-    modified=1
-    echo "[limine-patch] Entrada Windows agregada automáticamente (${windows_rel_path})" >&2
-fi
-
-if [[ $modified -eq 1 ]]; then
-    cp "$LIMINE_CONF" "${LIMINE_CONF}.bak"
-    mv "$tmpfile" "$LIMINE_CONF"
-    echo "[limine-patch] limine.conf actualizado. Backup en ${LIMINE_CONF}.bak"
+# --- 1. Parámetros de kernel ---------------------------------------------------
+params_changed=false
+rc=0
+if [[ -f "$DEFAULT_CONF" ]]; then
+    patch_cmdline_file "$DEFAULT_CONF" "$DEFAULT_LINE_RE" || rc=$?
 else
-    rm -f "$tmpfile"
-    echo "[limine-patch] Sin cambios necesarios."
+    rc=2
 fi
+if [[ $rc -eq 2 ]]; then
+    # Sin KERNEL_CMDLINE en /etc/default/limine: la herramienta usa /etc/kernel/cmdline.
+    # No se crea una línea "+=" nueva porque ignoraría /etc/kernel/cmdline y dejaría
+    # el sistema sin root=.
+    [[ -f "$KERNEL_CMDLINE_FILE" ]] || die "No hay KERNEL_CMDLINE[default] en $DEFAULT_CONF ni $KERNEL_CMDLINE_FILE. Configúralo a mano (ver /etc/limine-entry-tool.conf)."
+    rc=0
+    patch_cmdline_file "$KERNEL_CMDLINE_FILE" '.' || rc=$?
+fi
+[[ $rc -eq 0 ]] && params_changed=true
+
+if $params_changed; then
+    log "Regenerando limine.conf con limine-update..."
+    limine-update
+else
+    log "Parámetros de kernel ya presentes."
+fi
+
+# --- 2. Entrada de Windows (misma ESP) ------------------------------------------
+LIMINE_CONF=""
+ESP=""
+for d in /boot /efi /boot/efi; do
+    if [[ -f "$d/limine.conf" ]]; then LIMINE_CONF="$d/limine.conf"; ESP="$d"; break; fi
+    if [[ -f "$d/EFI/limine/limine.conf" ]]; then LIMINE_CONF="$d/EFI/limine/limine.conf"; ESP="$d"; break; fi
+done
+
+conf_changed=false
+if [[ -n "$LIMINE_CONF" ]]; then
+    # Migración: versiones anteriores escribían ":Windows" (sintaxis previa a Limine 8).
+    if grep -qE '^:Windows[[:space:]]*$' "$LIMINE_CONF"; then
+        cp -a "$LIMINE_CONF" "${LIMINE_CONF}.bak"
+        sed -i -E 's|^:Windows[[:space:]]*$|/Windows|' "$LIMINE_CONF"
+        conf_changed=true
+        log "Entrada ':Windows' antigua convertida a '/Windows'."
+    fi
+    if [[ -f "$ESP/EFI/Microsoft/Boot/bootmgfw.efi" ]] && ! grep -qi 'bootmgfw' "$LIMINE_CONF"; then
+        cp -a "$LIMINE_CONF" "${LIMINE_CONF}.bak"
+        cat >> "$LIMINE_CONF" <<'EOF'
+
+/Windows
+    protocol: efi
+    path: boot():/EFI/Microsoft/Boot/bootmgfw.efi
+EOF
+        conf_changed=true
+        log "Entrada de Windows agregada."
+    fi
+else
+    log "No se encontró limine.conf; se omite la entrada de Windows."
+fi
+
+# Si se editó limine.conf a mano, volver a registrar su checksum (si está activado)
+# y volver a firmar el binario de Limine para Secure Boot (si sbctl está configurado).
+if $conf_changed && command -v limine-enroll-config >/dev/null 2>&1; then
+    limine-enroll-config
+fi
+
+log "Listo."

@@ -14,6 +14,10 @@ export PATH="$HOME/.local/bin:$PATH"
 
 # === CLI Argument Parsing ===
 RUN_MODULE="${1:-all}"
+case "$RUN_MODULE" in
+    all|base|desktop|hardware|software|printer|secureboot|limine|--help|-h) ;;
+    *) echo "Unknown module: $RUN_MODULE (see --help)"; exit 1 ;;
+esac
 if [ "$RUN_MODULE" = "--help" ] || [ "$RUN_MODULE" = "-h" ]; then
     echo "Usage: ./cachyos-mega-setup.sh [module]"
     echo ""
@@ -22,10 +26,10 @@ if [ "$RUN_MODULE" = "--help" ] || [ "$RUN_MODULE" = "-h" ]; then
     echo "  base         Terminal, themes, fonts, Fish, OMF"
     echo "  desktop      GNOME/KDE customization and extensions"
     echo "  hardware     CPU/GPU optimization and power management"
-    echo "  software     Browser, Steam, Bambu Studio, VLC, Spotify, KeePassXC, VS Code"
+    echo "  software     Browser, Steam, Bambu Studio, VLC, Spotify, KeePassXC, VS Code, Codex CLI, Claude Code"
     echo "  printer      Brother printer installation"
     echo "  secureboot   Secure Boot signing with sbctl"
-    echo "  limine       Limine kernel cmdline patch"
+    echo "  limine       Limine kernel parameters (+ optional theme)"
     echo ""
     exit 0
 fi
@@ -53,16 +57,17 @@ if [ "$LANG_SEL" = "es" ]; then
   S_VLC_Q="¿Instalar VLC?"; S_SPOTIFY_Q="¿Instalar Spotify (AUR)?"; S_KPX_Q="¿Instalar KeePassXC (Flatpak, usuario)?"
   S_VSC_Q="¿Instalar Visual Studio Code?"
   S_IVC="Instalando Visual Studio Code"; S_VCD="IDE: Visual Studio Code instalado"
-  S_CDX_Q="¿Instalar Codex CLI (npm)?"; S_CDX_I="Instalando Codex CLI (npm)"; S_CDX_D="CLI: Codex instalado"; S_CDX_A="Codex CLI ya instalado"
-  S_CLD_Q="¿Instalar Claude Code (npm)?"; S_CLD_I="Instalando Claude Code (npm)"; S_CLD_D="CLI: Claude Code instalado"; S_CLD_A="Claude Code ya instalado"
-  S_NPM_I="Instalando dependencias Node.js/npm"
+  S_CDX_Q="¿Instalar Codex CLI (repos)?"; S_CDX_I="Instalando Codex CLI (openai-codex)"; S_CDX_D="CLI: Codex instalado"; S_CDX_A="Codex CLI ya instalado"
+  S_CLD_Q="¿Instalar Claude Code (instalador nativo)?"; S_CLD_I="Instalando Claude Code (instalador nativo)"; S_CLD_D="CLI: Claude Code instalado"; S_CLD_A="Claude Code ya instalado"
   S_PRT_Q="¿Instalar impresora Brother?"
   S_PRT_MD="Modelo por defecto"; S_PRT_MQ="Modelo de impresora (Enter para default)"
   S_PRT_ID="IP por defecto"; S_PRT_IQ="IP de la impresora (Enter para default)"
   S_SB_Q="¿Firmar el bootloader (Secure Boot)?"; S_SB_N="Requiere haber borrado las llaves de fábrica en BIOS."
-  S_LM_Q="¿Instalar el parche de Limine (protege parámetros de kernel)?"
+  S_LM_Q="¿Aplicar parámetros de kernel en Limine (/etc/default/limine)?"
   S_LM_U="¿Actualizar parche de Limine?"
-  S_LT_Q="¿Aplicar tema CachyOS para Limine?"
+  S_LT_Q="¿Aplicar un tema a Limine?"
+  S_LTH_SEL="Tema de Limine"; S_LTH_GREEN="paleta verde Catppuccin"; S_LTH_INV="Opción no válida, se usa CachyOS."
+  S_LTH_APPLY="¿Aplicar"
   S_UPD="Actualización disponible"
   S_TS_Q="¿Instalar la extensión Tailscale Status para GNOME?"; S_TS_N="Gestionar conexiones Tailscale desde el escritorio."
   S_SUM="✅  RESUMEN DE SELECCIÓN"
@@ -81,7 +86,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_FSH="Inyectando configuraciones en Fish..."; S_FSH_D="Fish Shell configurado con bobthefish + Fastfetch"
   S_M2="🎨  MÓDULO 2: Personalización del Escritorio"
   S_GT="Instalando herramientas de GNOME"; S_GT_D="GNOME Tweaks, conector y extensiones base instalados"
-  S_CAF="Instalando Caffeine (repos)"; S_D2D="Instalando Dash to Dock (AUR)"
+  S_CAF="Instalando Caffeine (repos)"; S_D2D="Instalando Dash to Dock (repos)"
   S_THM="Aplicando tema Orchis-Green-Dark en GNOME..."; S_THM_D="Apariencia GNOME: Orchis-Green-Dark"
   S_ENX="Habilitando extensiones de repos..."; S_END="Habilitada"
   S_EXD="Extensiones base habilitadas: User Themes, Places, Drive Menu, System Monitor, Caffeine, Dash to Dock"
@@ -132,7 +137,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_SBS="Secure Boot: SALTADO (no UEFI)"
   S_SBE="sbctl ya instalado."; S_SBI="Estado de Secure Boot:"
   S_SMD="Setup Mode detectado."; S_CKY="Creando llaves criptográficas"
-  S_EKY="Inscribiendo llaves (compatibilidad Microsoft)"; S_SBT="Firmando bootloader Limine y Kernel"
+  S_EKY="Inscribiendo llaves (compatibilidad Microsoft)"; S_SBT="Firmando el bootloader Limine"
   S_VFY="Verificación final de firmas:"; S_SBD="Secure Boot: Llaves creadas y bootloader firmado"
   S_SBR="   -> Reinicia y activa Secure Boot en BIOS"
   S_NSM="Setup Mode no habilitado."; S_FKY="Llaves de fábrica siguen en la placa."
@@ -142,9 +147,9 @@ if [ "$LANG_SEL" = "es" ]; then
   S_SBF="Secure Boot: No se pudo firmar (Setup Mode no activo)"
   S_RBQ="¿Reiniciar a la BIOS?"; S_RBG="Reiniciando a la BIOS..."
   S_M7="🔧  MÓDULO 7: Limine Kernel Cmdline Patch"
-  S_LMS="Instalando limine-patch-cmdline"; S_LMH="Instalando hook de pacman para Limine"
-  S_LMA="Aplicando parche inicial a limine.conf"; S_LMD="Limine Patch: Hook instalado"
-  S_LTT="Aplicando tema de Limine (diegons490)"; S_LTD="Limine Theme: CachyOS aplicado"
+  S_LMS="Instalando limine-patch-cmdline"; S_LMH="Retirando hook de pacman antiguo"
+  S_LMA="Aplicando parámetros de kernel y regenerando limine.conf"; S_LMD="Limine: parámetros de kernel en /etc/default/limine"
+  S_LTT="Aplicando tema de Limine"; S_LTD="Tema de Limine aplicado"
   S_FTL="📋  RESUMEN DE LA INSTALACIÓN SCHOPERENA"
   S_GN="📝 NOTAS POST-INSTALACIÓN (GNOME):"
   S_G1="Cierra sesión y vuelve a entrar para activar extensiones."
@@ -173,16 +178,17 @@ else
   S_VLC_Q="Install VLC?"; S_SPOTIFY_Q="Install Spotify (AUR)?"; S_KPX_Q="Install KeePassXC (Flatpak, user)?"
   S_VSC_Q="Install Visual Studio Code?"
   S_IVC="Installing Visual Studio Code"; S_VCD="IDE: Visual Studio Code installed"
-  S_CDX_Q="Install Codex CLI (npm)?"; S_CDX_I="Installing Codex CLI (npm)"; S_CDX_D="CLI: Codex installed"; S_CDX_A="Codex CLI already installed"
-  S_CLD_Q="Install Claude Code (npm)?"; S_CLD_I="Installing Claude Code (npm)"; S_CLD_D="CLI: Claude Code installed"; S_CLD_A="Claude Code already installed"
-  S_NPM_I="Installing Node.js/npm dependencies"
+  S_CDX_Q="Install Codex CLI (repos)?"; S_CDX_I="Installing Codex CLI (openai-codex)"; S_CDX_D="CLI: Codex installed"; S_CDX_A="Codex CLI already installed"
+  S_CLD_Q="Install Claude Code (native installer)?"; S_CLD_I="Installing Claude Code (native installer)"; S_CLD_D="CLI: Claude Code installed"; S_CLD_A="Claude Code already installed"
   S_PRT_Q="Install Brother printer?"
   S_PRT_MD="Default model"; S_PRT_MQ="Printer model (Enter for default)"
   S_PRT_ID="Default IP"; S_PRT_IQ="Printer IP (Enter for default)"
   S_SB_Q="Sign bootloader (Secure Boot)?"; S_SB_N="Requires factory keys cleared in BIOS."
-  S_LM_Q="Install Limine patch (protects kernel parameters)?"
+  S_LM_Q="Apply Limine kernel parameters (/etc/default/limine)?"
   S_LM_U="Update Limine patch?"
-  S_LT_Q="Apply CachyOS theme for Limine?"
+  S_LT_Q="Apply a Limine theme?"
+  S_LTH_SEL="Limine theme"; S_LTH_GREEN="green Catppuccin palette"; S_LTH_INV="Invalid option, using CachyOS."
+  S_LTH_APPLY="Apply"
   S_UPD="Update available"
   S_TS_Q="Install Tailscale Status extension for GNOME?"; S_TS_N="Manage Tailscale connections from desktop."
   S_SUM="✅  SELECTION SUMMARY"
@@ -201,7 +207,7 @@ else
   S_FSH="Injecting Fish configurations..."; S_FSH_D="Fish Shell configured with bobthefish + Fastfetch"
   S_M2="🎨  MODULE 2: Desktop Customization"
   S_GT="Installing GNOME tools"; S_GT_D="GNOME Tweaks, browser connector and base extensions installed"
-  S_CAF="Installing Caffeine (repos)"; S_D2D="Installing Dash to Dock (AUR)"
+  S_CAF="Installing Caffeine (repos)"; S_D2D="Installing Dash to Dock (repos)"
   S_THM="Applying Orchis-Green-Dark theme on GNOME..."; S_THM_D="GNOME appearance: Orchis-Green-Dark"
   S_ENX="Enabling extensions from repos..."; S_END="Enabled"
   S_EXD="Base extensions enabled: User Themes, Places, Drive Menu, System Monitor, Caffeine, Dash to Dock"
@@ -252,7 +258,7 @@ else
   S_SBS="Secure Boot: SKIPPED (not UEFI)"
   S_SBE="sbctl already installed."; S_SBI="Secure Boot status:"
   S_SMD="Setup Mode detected."; S_CKY="Creating custom cryptographic keys"
-  S_EKY="Enrolling keys (Microsoft compatibility)"; S_SBT="Signing Limine bootloader and Kernel"
+  S_EKY="Enrolling keys (Microsoft compatibility)"; S_SBT="Signing Limine bootloader"
   S_VFY="Final signature verification:"; S_SBD="Secure Boot: Keys created and bootloader signed"
   S_SBR="   -> Reboot and enable Secure Boot in BIOS"
   S_NSM="Setup Mode not enabled."; S_FKY="Factory keys still on motherboard."
@@ -262,9 +268,9 @@ else
   S_SBF="Secure Boot: Could not sign (Setup Mode not active)"
   S_RBQ="Reboot to BIOS?"; S_RBG="Rebooting to BIOS..."
   S_M7="🔧  MODULE 7: Limine Kernel Cmdline Patch"
-  S_LMS="Installing limine-patch-cmdline"; S_LMH="Installing pacman hook for Limine"
-  S_LMA="Applying initial patch to limine.conf"; S_LMD="Limine Patch: Hook installed"
-  S_LTT="Applying Limine theme (diegons490)"; S_LTD="Limine Theme: CachyOS applied"
+  S_LMS="Installing limine-patch-cmdline"; S_LMH="Removing legacy pacman hook"
+  S_LMA="Applying kernel parameters and regenerating limine.conf"; S_LMD="Limine: kernel parameters in /etc/default/limine"
+  S_LTT="Applying Limine theme"; S_LTD="Limine theme applied"
   S_FTL="📋  SCHOPERENA INSTALLATION SUMMARY"
   S_GN="📝 POST-INSTALL NOTES (GNOME):"
   S_G1="Log out and back in to activate new extensions."
@@ -287,13 +293,13 @@ load_strings  # Default English
 
 # === Core Functions ===
 LOG_FILE="$HOME/cachyos-setup-debug.log"
-> "$LOG_FILE" # Inicializar y limpiar el log
+: > "$LOG_FILE" # Inicializar y limpiar el log
 
 run_task() {
     local text="$1"; shift
     echo -e "\n=============================================" >> "$LOG_FILE"
     echo "Task: $text" >> "$LOG_FILE"
-    echo "Command: $@" >> "$LOG_FILE"
+    echo "Command: $*" >> "$LOG_FILE"
     echo "=============================================" >> "$LOG_FILE"
     
     "$@" >> "$LOG_FILE" 2>&1 &
@@ -357,7 +363,17 @@ smart_install() {
         m+=("$p")
     done
     [ ${#m[@]} -eq 0 ] && return 0
-    [ "$tool" = "paru" ] && paru -S --noconfirm --needed "${m[@]}" || sudo pacman -S --noconfirm --needed "${m[@]}"
+    # if/else (not "&& ||"): a failed paru install must not fall through to pacman
+    if [ "$tool" = "paru" ]; then
+        paru -S --noconfirm --needed "${m[@]}"
+    else
+        sudo pacman -S --noconfirm --needed "${m[@]}"
+    fi
+}
+# Keep a timestamped copy of a config file before overwriting it
+backup_file() {
+    [ -f "$1" ] && cp -a "$1" "$1.bak.$(date +%Y%m%d-%H%M%S)"
+    return 0
 }
 ensure_flathub() {
     smart_install pacman flatpak && sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -372,12 +388,149 @@ install_gnome_extension() {
     [ -z "$info" ] && { echo -e "${YELLOW}[!] ${S_ENF} $gv: $uuid${NC}"; return 1; }
     local dl; dl=$(echo "$info" | python3 -c "import sys,json;print(json.load(sys.stdin)['download_url'])" 2>/dev/null)
     [ -z "$dl" ] && { echo -e "${YELLOW}[!] ${S_ENU} '$uuid'${NC}"; return 1; }
-    local tz; tz=$(mktemp /tmp/gnome-ext-XXXXXX.zip)
-    curl -sL "https://extensions.gnome.org${dl}" -o "$tz"
-    gnome-extensions install --force "$tz" 2>/dev/null; rm -f "$tz"
-    gnome-extensions enable "$uuid" 2>/dev/null || true
+    local tz rc=0; tz=$(mktemp /tmp/gnome-ext-XXXXXX.zip)
+    curl -fsSL "https://extensions.gnome.org${dl}" -o "$tz" && gnome-extensions install --force "$tz" || rc=1
+    rm -f "$tz"
+    [ $rc -eq 0 ] && enable_gnome_extension "$uuid"
+    return $rc
+}
+# On Wayland, a freshly installed extension is unknown to the running shell until
+# the next login, so "gnome-extensions enable" fails. Fall back to adding it to the
+# enabled-extensions key, which GNOME applies on next login.
+enable_gnome_extension() {
+    local uuid="$1"
+    gnome-extensions enable "$uuid" 2>/dev/null && return 0
+    local cur new
+    cur=$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null) || return 0
+    new=$(python3 -c '
+import ast, sys
+cur = sys.argv[1].replace("@as ", "")
+lst = ast.literal_eval(cur) if cur.strip() else []
+if sys.argv[2] not in lst:
+    lst.append(sys.argv[2])
+print(str(lst))' "$cur" "$uuid" 2>/dev/null) || return 0
+    gsettings set org.gnome.shell enabled-extensions "$new" 2>/dev/null || true
 }
 SUMMARY=()
+# === Limine themes ===
+# Option 0: CachyOS wallpaper (diegons490/cachyos-limine-theme) + green Catppuccin palette.
+# Options 1-16: Spont-427/limine-theme (MIT), wallpapers generated locally by its Python engine.
+# Both sources are pinned to a commit and verified by sha256.
+LT_COMMIT="8464feddf094ded0f68ce2b370cdf2442fc2b0ee"
+LT_SHA256="7dacf905f4729ce913b9580ca96248e007627e7c3fa4f4ab0eb0d0d4389a47d8"
+CL_COMMIT="81500891c2dd6da1af3eacd650eba86f2e4dc64c"
+CL_SHA256="2081cd64e7a1e355b502f481772c1486d9a5ce6cd663543fcbb2db477fa28910"
+LT_THEMES=(catppuccin-mocha nord gruvbox tokyo-night rose-pine dracula solarized-dark
+           synthwave neon-city matrix crt-amber crt-green gameboy old-bios glass minimal)
+LIMINE_THEME_KEYS='term_palette|term_palette_bright|term_background|term_foreground|term_background_bright|term_foreground_bright|term_margin|term_margin_gradient|term_font_spacing|term_font_scale|term_font|wallpaper|wallpaper_style|backdrop|interface_branding|interface_branding_colou?r|interface_help_colou?r|interface_help_colou?r_bright|interface_help_hidden|interface_resolution|timeout|default_entry'
+LIMINE_THEME_CHOICE=0; LIMINE_THEME_NAME="CachyOS"
+
+# Locate limine.conf on the EFI system partition (CachyOS mounts it at /boot by default)
+find_limine_conf() {
+    local d
+    for d in /boot /efi /boot/efi; do
+        sudo test -f "$d/limine.conf" && { echo "$d/limine.conf"; return 0; }
+        sudo test -f "$d/EFI/limine/limine.conf" && { echo "$d/EFI/limine/limine.conf"; return 0; }
+    done
+    return 1
+}
+# Download a pinned file and verify its sha256: fetch_pinned <url> <sha256> <dest>
+fetch_pinned() {
+    curl -fsSL "$1" -o "$3" || return 1
+    echo "$2  $3" | sha256sum -c --quiet - || { echo "checksum mismatch: $1"; rm -f "$3"; return 1; }
+}
+# Preferred mode of the first connected display, e.g. 2560x1440
+limine_native_res() {
+    local s m
+    for s in /sys/class/drm/card*-*/status; do
+        [ "$(cat "$s" 2>/dev/null)" = connected ] || continue
+        m=$(head -n1 "${s%status}modes" 2>/dev/null)
+        [[ $m =~ ^[0-9]+x[0-9]+$ ]] && { echo "$m"; return 0; }
+    done
+    return 1
+}
+# Remove both theme formats from the header only (up to the first /entry). Idempotent.
+limine_theme_reset() {
+    local conf=$1 dir; dir=$(dirname "$conf")
+    sudo sed -i -e '/^# >>> limine-theme >>>$/,/^# <<< limine-theme <<<$/d' \
+                -e 's/^#\[limine-theme\] //' "$conf"
+    sudo sed -i -E "0,/^\//{/^(${LIMINE_THEME_KEYS})[[:space:]]*:/Id}" "$conf"
+    sudo rm -f "$dir"/limine-theme/wp* "$dir"/limine-theme/font.bin "$dir/cachyos.png"
+}
+# Interactive: menu + terminal preview. Runs BEFORE run_task (needs the TTY).
+# Sets LIMINE_THEME_CHOICE / LIMINE_THEME_NAME; returns 1 if the user backs out.
+select_limine_theme() {
+    local choice i ans tmp
+    echo "      0) CachyOS (cachyos.png + ${S_LTH_GREEN})"
+    for i in "${!LT_THEMES[@]}"; do printf '      %d) %s\n' $((i+1)) "${LT_THEMES[$i]}"; done
+    read -rp "   ${S_LTH_SEL} [0-${#LT_THEMES[@]}] (${S_DEF}: 0): " choice </dev/tty
+    choice=${choice:-0}
+    if ! [[ $choice =~ ^[0-9]+$ ]] || [ "$choice" -gt ${#LT_THEMES[@]} ]; then
+        echo -e "   ${YELLOW}${S_LTH_INV}${NC}"; choice=0
+    fi
+    LIMINE_THEME_CHOICE=$choice; LIMINE_THEME_NAME="CachyOS"
+    [ "$choice" -eq 0 ] && return 0
+    LIMINE_THEME_NAME=${LT_THEMES[$((choice-1))]}
+    # Preview in the terminal (as the user, writes nothing). Needs python3.
+    if command -v python3 >/dev/null 2>&1; then
+        tmp=$(mktemp -d)
+        if fetch_pinned "https://raw.githubusercontent.com/Spont-427/limine-theme/$LT_COMMIT/limine-theme.sh" "$LT_SHA256" "$tmp/lt.sh"; then
+            bash "$tmp/lt.sh" preview "$LIMINE_THEME_NAME" </dev/tty || true
+        fi
+        rm -rf "$tmp"
+    fi
+    read -rp "   ${S_LTH_APPLY} '$LIMINE_THEME_NAME'? ${S_YN_DY} " ans </dev/tty
+    if [ -n "$ans" ] && ! [[ "$ans" =~ $S_YN_RE ]]; then
+        LIMINE_THEME_CHOICE=0; LIMINE_THEME_NAME="CachyOS"; return 1
+    fi
+    return 0
+}
+# Non-interactive: applies LIMINE_THEME_CHOICE. Safe inside run_task.
+# Only global options are touched; limine-update keeps them when regenerating entries.
+apply_limine_theme() {
+    local conf dir esp rel bak tmp h rc=0 res
+    conf=$(find_limine_conf) || { echo "limine.conf not found"; return 1; }
+    dir=$(dirname "$conf")
+    # boot():/ is the root of the partition holding limine.conf (the ESP)
+    esp=$(findmnt -no TARGET -T "$dir" 2>/dev/null) || esp="$dir"
+    rel=${dir#"$esp"}
+    tmp=$(mktemp -d)
+    if [ "$LIMINE_THEME_CHOICE" -gt 0 ]; then
+        smart_install pacman python || rc=1
+        [ $rc -eq 0 ] && { fetch_pinned "https://raw.githubusercontent.com/Spont-427/limine-theme/$LT_COMMIT/limine-theme.sh" "$LT_SHA256" "$tmp/lt.sh" || rc=1; }
+    else
+        fetch_pinned "https://raw.githubusercontent.com/diegons490/cachyos-limine-theme/$CL_COMMIT/cachyos.png" "$CL_SHA256" "$tmp/cachyos.png" || rc=1
+    fi
+    [ $rc -eq 0 ] || { rm -rf "$tmp"; return 1; }
+
+    bak="$conf.bak-theme-$(date +%Y%m%d-%H%M%S)"
+    sudo cp -a "$conf" "$bak" || { rm -rf "$tmp"; return 1; }
+    limine_theme_reset "$conf"
+
+    if [ "$LIMINE_THEME_CHOICE" -gt 0 ]; then
+        local args=(-c "$conf" -t "$LIMINE_THEME_NAME" -y --hash --colour-mode hex)
+        # card/hud frames are drawn per pixel: use the native resolution, or no frame
+        if res=$(limine_native_res); then args+=(--screen "$res"); else args+=(--ui none); fi
+        sudo bash "$tmp/lt.sh" "${args[@]}" </dev/null || rc=1
+    else
+        sudo install -m 0644 "$tmp/cachyos.png" "$dir/cachyos.png" || rc=1
+        # #blake2b hash: with Secure Boot + enrolled config, Limine ignores unhashed wallpapers
+        h=$(b2sum "$tmp/cachyos.png" | cut -d' ' -f1)
+        [ $rc -eq 0 ] && { sudo sed -i "1iterm_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4\nterm_background: ffffffff\nterm_foreground: cdd6f4\nterm_background_bright: ffffffff\nterm_foreground_bright: cdd6f4\nwallpaper: boot():${rel}/cachyos.png#${h}\ninterface_branding:" "$conf" || rc=1; }
+    fi
+    # Theme-independent globals, always at the top (before any /entry)
+    [ $rc -eq 0 ] && { sudo sed -i '1itimeout: 10\ndefault_entry: 2' "$conf" || rc=1; }
+    rm -rf "$tmp"
+    if [ $rc -ne 0 ]; then
+        sudo cp -a "$bak" "$conf"
+        echo "theme failed, limine.conf restored from $bak"
+        return 1
+    fi
+    # limine.conf was edited by hand: re-enroll its checksum (if enabled) and re-sign Limine
+    if command -v limine-enroll-config >/dev/null 2>&1; then
+        sudo limine-enroll-config || { sudo cp -a "$bak" "$conf"; sudo limine-enroll-config; return 1; }
+    fi
+}
 
 # === Detect Desktop + CPU ===
 detect_desktop() {
@@ -434,6 +587,8 @@ echo ""
 # === Sudo ===
 echo -e "${YELLOW}${S_SUDO}${NC}"; sudo -v
 (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null) &
+SUDO_KEEPALIVE_PID=$!
+trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null' EXIT
 echo ""
 
 # === Mandatory full update before setup ===
@@ -453,7 +608,7 @@ PRINTER_MODEL="DCP-L2640DW"; PRINTER_IP="10.0.2.220"
 # For single-module mode, auto-enable relevant flags
 if [ "$RUN_MODULE" = "printer" ]; then INSTALL_PRINTER="${S_YN_Y}"; fi
 if [ "$RUN_MODULE" = "secureboot" ]; then SIGN_BOOTLOADER="${S_YN_Y}"; fi
-if [ "$RUN_MODULE" = "limine" ]; then INSTALL_LIMINE_PATCH="${S_YN_Y}"; INSTALL_LIMINE_THEME="${S_YN_Y}"; fi
+if [ "$RUN_MODULE" = "limine" ]; then INSTALL_LIMINE_PATCH="${S_YN_Y}"; fi
 
 # === Mega Menu (only in full interactive mode) ===
 if [ "$RUN_MODULE" = "all" ]; then
@@ -565,8 +720,12 @@ else
 fi
 
 echo -e "${CYAN}6b. ${S_LT_Q}${NC}"
-read -p "   ${S_YN} " INSTALL_LIMINE_THEME </dev/tty; INSTALL_LIMINE_THEME=${INSTALL_LIMINE_THEME:-n}; echo ""
-_M_LT=$([[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]] && echo "$S_YES" || echo "$S_NO")
+read -p "   ${S_YN} " INSTALL_LIMINE_THEME </dev/tty; INSTALL_LIMINE_THEME=${INSTALL_LIMINE_THEME:-n}
+if [[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]]; then
+    select_limine_theme || INSTALL_LIMINE_THEME="n"
+fi
+echo ""
+_M_LT=$([[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]] && echo "$S_YES ($LIMINE_THEME_NAME)" || echo "$S_NO")
 
 INSTALL_TAILSCALE_EXT="n"; _M_TS="$S_NO"
 if [ "$DESKTOP_ENV" = "gnome" ]; then
@@ -604,6 +763,13 @@ echo -e "   Limine Theme:   $_M_LT"
 echo ""; read -p "${S_CONFIRM} " </dev/tty; echo ""
 
 # --- Module-only mode: ask module-specific questions ---
+elif [ "$RUN_MODULE" = "limine" ]; then
+    echo -e "${CYAN}${S_LT_Q}${NC}"
+    read -p "   ${S_YN_DY} " INSTALL_LIMINE_THEME </dev/tty; INSTALL_LIMINE_THEME=${INSTALL_LIMINE_THEME:-$S_YN_Y}
+    if [[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]]; then
+        select_limine_theme || INSTALL_LIMINE_THEME="n"
+    fi
+    echo ""
 elif [ "$RUN_MODULE" = "printer" ]; then
     echo -e "${DIM}   ${S_PRT_MD}: ${PRINTER_MODEL}${NC}"
     read -p "   ${S_PRT_MQ}: " INPUT_MODEL </dev/tty; PRINTER_MODEL=${INPUT_MODEL:-$PRINTER_MODEL}
@@ -674,7 +840,7 @@ echo -e "${GREEN}═════════════════════
 run_task "$S_CLK" sudo timedatectl set-local-rtc 1 --adjust-system-clock; SUMMARY+=("$S_CLK_D")
 run_task "$S_BASE" smart_install pacman zellij orchis-theme tela-circle-icon-theme-all python python-pip ttf-meslo-nerd curl git fastfetch mesa; SUMMARY+=("$S_BASE_D")
 
-echo -e "${BLUE}[ℹ] ${S_ALA}${NC}"; mkdir -p ~/.config/alacritty
+echo -e "${BLUE}[ℹ] ${S_ALA}${NC}"; mkdir -p ~/.config/alacritty; backup_file ~/.config/alacritty/alacritty.toml
 cat << 'EOF' > ~/.config/alacritty/alacritty.toml
 [window]
 opacity = 0.85
@@ -711,7 +877,7 @@ white   = '#a6adc8'
 EOF
 SUMMARY+=("$S_ALA_D")
 
-echo -e "${BLUE}[ℹ] ${S_ZEL}${NC}"; mkdir -p ~/.config/zellij
+echo -e "${BLUE}[ℹ] ${S_ZEL}${NC}"; mkdir -p ~/.config/zellij; backup_file ~/.config/zellij/config.kdl
 cat << 'EOF' > ~/.config/zellij/config.kdl
 theme "cachy-green"
 themes {
@@ -740,15 +906,23 @@ if ! fish -c "omf list" 2>/dev/null | grep -q "bobthefish"; then
     run_task "$S_BOB_IN" fish -c "omf install bobthefish"; SUMMARY+=("$S_BOB_D")
 else printf "\r${GREEN}[✔] ${S_BOB_EX}${NC}\033[K\n"; fi
 
-echo -e "${BLUE}[ℹ] ${S_FSH}${NC}"; mkdir -p ~/.config/fish
+echo -e "${BLUE}[ℹ] ${S_FSH}${NC}"; mkdir -p ~/.config/fish; backup_file ~/.config/fish/config.fish
 cat << 'EOF' > ~/.config/fish/config.fish
+# Keep CachyOS defaults (aliases, PATH, done notifications), but silence its
+# fastfetch greeting: fastfetch runs inside Zellij below instead.
+if test -f /usr/share/cachyos-fish-config/cachyos-config.fish
+    source /usr/share/cachyos-fish-config/cachyos-config.fish
+end
+function fish_greeting
+end
 set -g theme_color_scheme terminal
 set -g theme_display_git yes
 set -g theme_display_git_dirty yes
 set -g theme_nerd_fonts yes
 set -g theme_show_exit_status yes
 if status is-interactive
-    if not set -q ZELLIJ
+    # Auto-start Zellij, except inside it already or in editor-embedded terminals
+    if not set -q ZELLIJ; and test "$TERM_PROGRAM" != vscode
         zellij
     else
         fastfetch
@@ -767,7 +941,7 @@ echo -e "${GREEN}═════════════════════
 if [ "$DESKTOP_ENV" = "gnome" ]; then
     run_task "$S_GT" smart_install pacman gnome-tweaks gnome-browser-connector gnome-shell-extensions; SUMMARY+=("$S_GT_D")
     run_task "$S_CAF" smart_install pacman gnome-shell-extension-caffeine
-    run_task "$S_D2D" install_gnome_extension "dash-to-dock@micxgx.gmail.com"
+    run_task "$S_D2D" smart_install pacman gnome-shell-extension-dash-to-dock
     echo -e "${BLUE}[ℹ] ${S_THM}${NC}"
     gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
     gsettings set org.gnome.desktop.interface gtk-theme 'Orchis-Green-Dark' 2>/dev/null || true
@@ -778,7 +952,7 @@ if [ "$DESKTOP_ENV" = "gnome" ]; then
     SUMMARY+=("$S_THM_D")
     echo -e "${BLUE}[ℹ] ${S_ENX}${NC}"
     for eu in "user-theme@gnome-shell-extensions.gcampax.github.com" "places-menu@gnome-shell-extensions.gcampax.github.com" "drive-menu@gnome-shell-extensions.gcampax.github.com" "system-monitor@gnome-shell-extensions.gcampax.github.com" "caffeine@patapon.info" "dash-to-dock@micxgx.gmail.com"; do
-        gnome-extensions enable "$eu" 2>/dev/null || true; printf "${GREEN}[✔] ${S_END}: %s${NC}\n" "$eu"
+        enable_gnome_extension "$eu"; printf "${GREEN}[✔] ${S_END}: %s${NC}\n" "$eu"
     done; SUMMARY+=("$S_EXD")
     echo ""; echo -e "${BLUE}[ℹ] ${S_DLE}${NC}"
     REXT=("extension-list@tu.berry" "tiling-assistant@leleat-on-github" "transparent-top-bar@ftpix.com")
@@ -865,19 +1039,27 @@ if $IS_LAPTOP; then
     if [ "$GPU_VENDOR" = "nvidia" ]; then
         run_task "$S_ENV" smart_install paru envycontrol; SUMMARY+=("$S_EVD"); SUMMARY+=("$S_EVT")
     fi
+    # power-profiles-daemon conflicts with auto-cpufreq. It is D-Bus activated, so it
+    # may not show as "enabled"; mask it whenever the unit exists.
     systemctl is-active --quiet power-profiles-daemon 2>/dev/null && run_task "$S_PPS" sudo systemctl stop power-profiles-daemon
-    (systemctl is-enabled --quiet power-profiles-daemon 2>/dev/null) && run_task "$S_PPM" sudo systemctl mask power-profiles-daemon
+    if systemctl list-unit-files power-profiles-daemon.service >/dev/null 2>&1 \
+       && [ "$(systemctl is-enabled power-profiles-daemon 2>/dev/null)" != "masked" ]; then
+        run_task "$S_PPM" sudo systemctl mask power-profiles-daemon
+    fi
     run_task "$S_ACF" sudo systemctl enable --now auto-cpufreq
-    sudo bash -c 'cat << "SVCEOF" > /etc/systemd/system/powertop.service
+    sudo tee /etc/systemd/system/powertop.service >/dev/null << 'SVCEOF'
 [Unit]
 Description=Powertop tunings
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=-/usr/bin/powertop --auto-tune
+# --auto-tune enables USB autosuspend, which causes laggy/dropping USB mice and
+# keyboards (the same reason usbcore.autosuspend=-1 is set in Limine). Undo it.
+ExecStartPost=/bin/sh -c 'for f in /sys/bus/usb/devices/*/power/control; do echo on > "$$f"; done'
 [Install]
 WantedBy=multi-user.target
-SVCEOF'
+SVCEOF
     sudo systemctl daemon-reload; run_task "$S_PWT" sudo systemctl enable --now powertop.service
     SUMMARY+=("$S_PWD")
 else SUMMARY+=("$S_DST"); fi
@@ -888,12 +1070,13 @@ if [ "$RUN_MODULE" = "all" ] || [ "$RUN_MODULE" = "software" ]; then
 echo ""; echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}  ${S_M4}${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"; echo ""
-npm_ready=false
 if [ -n "$BROWSER_PKG" ]; then run_task "${S_IBR} ($BROWSER_PKG)" smart_install paru "$BROWSER_PKG"; SUMMARY+=("${S_BRD}: $BROWSER_PKG")
 else SUMMARY+=("$S_BRS"); fi
 if [[ "$INSTALL_STEAM" =~ $S_YN_RE ]]; then
     run_task "$S_IST" smart_install pacman steam cachyos-gaming-meta
     SUMMARY+=("$S_STD")
+    # prime-run (used in the hybrid-GPU launch options below) comes from nvidia-prime
+    $GPU_IS_HYBRID && run_task "nvidia-prime (prime-run)" smart_install pacman nvidia-prime
     # Install / verify gamemode + 32-bit library
     if pacman -Qq gamemode >/dev/null 2>&1 && pacman -Qq lib32-gamemode >/dev/null 2>&1; then
         printf "${GREEN}[✔] ${S_GMD_A}${NC}\n"
@@ -921,14 +1104,14 @@ if [[ "$INSTALL_KEEPASSXC" =~ $S_YN_RE ]]; then
 fi
 if [[ "$INSTALL_VSCODE" =~ $S_YN_RE ]]; then run_task "$S_IVC" smart_install paru visual-studio-code-bin; SUMMARY+=("$S_VCD"); fi
 if [[ "$INSTALL_CODEX" =~ $S_YN_RE ]]; then
-    $npm_ready || { run_task "$S_NPM_I" smart_install pacman nodejs npm && npm_ready=true; }
-    run_task "$S_CDX_I" npm install -g --prefix "$HOME/.local" @openai/codex
-    ensure_local_bin_path
+    # Packaged in Arch [extra]; updates with the system (no npm needed)
+    run_task "$S_CDX_I" smart_install pacman openai-codex
     SUMMARY+=("$S_CDX_D")
 fi
 if [[ "$INSTALL_CLAUDE_CODE" =~ $S_YN_RE ]]; then
-    $npm_ready || { run_task "$S_NPM_I" smart_install pacman nodejs npm && npm_ready=true; }
-    run_task "$S_CLD_I" npm install -g --prefix "$HOME/.local" @anthropic-ai/claude-code
+    # Official native installer (npm install is deprecated); installs to ~/.local/bin
+    # and keeps itself updated in the background.
+    run_task "$S_CLD_I" bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
     ensure_local_bin_path
     SUMMARY+=("$S_CLD_D")
 fi
@@ -951,11 +1134,11 @@ if [[ "$INSTALL_PRINTER" =~ $S_YN_RE ]]; then
     run_task "$S_CPS" sudo systemctl enable --now cups
     REAL_USER="${SUDO_USER:-$USER}"; id -nG "$REAL_USER" | grep -qw lp || { sudo usermod -aG lp "$REAL_USER"; SUMMARY+=("$REAL_USER $S_LPD"); }
     run_task "$S_DBR" bash -c "cd '$BROTHER_WORKDIR' && wget -q -T 30 -O '$INSTALLER_GZ' '$INSTALLER_URL'"
-    echo -e "${BLUE}[ℹ] ${S_DCM}${NC}"; cd "$BROTHER_WORKDIR"; gunzip -f "$INSTALLER_GZ"; chmod +x "$INSTALLER_BIN"
+    echo -e "${BLUE}[ℹ] ${S_DCM}${NC}"; gunzip -f "$BROTHER_WORKDIR/$INSTALLER_GZ"; chmod +x "$BROTHER_WORKDIR/$INSTALLER_BIN"
     run_task "${S_RBR} $PRINTER_MODEL" bash -c "cd '$BROTHER_WORKDIR'; printf '%s\n' '$PRINTER_MODEL' y y y y y y y 10 '$PRINTER_IP' n | ./'$INSTALLER_BIN' || true"
     command -v brsaneconfig5 &>/dev/null && { run_task "$S_SCN" sudo brsaneconfig5 -a name="$PRINTER_MODEL" model="$PRINTER_MODEL" ip="$PRINTER_IP"; }
     lpstat -p "$PRINTER_MODEL" &>/dev/null 2>&1 && SUMMARY+=("$PRINTER_MODEL $S_POK") || SUMMARY+=("$PRINTER_MODEL: $S_PVR")
-    rm -rf "$BROTHER_WORKDIR"; cd ~; SUMMARY+=("Brother $PRINTER_MODEL $S_PDN $PRINTER_IP)")
+    rm -rf "$BROTHER_WORKDIR"; SUMMARY+=("Brother $PRINTER_MODEL $S_PDN $PRINTER_IP)")
 fi
 
 # === MODULE 6: Secure Boot ===
@@ -966,14 +1149,17 @@ if [[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]]; then
     if [ ! -d "/sys/firmware/efi" ]; then
         echo -e "${RED}[✖] ${S_NUE}${NC}"; echo -e "${RED}    ${S_NU2}${NC}"; SUMMARY+=("$S_SBS")
     else
-        command -v sbctl >/dev/null 2>&1 || run_task "sbctl" smart_install paru sbctl
+        command -v sbctl >/dev/null 2>&1 || run_task "sbctl" smart_install pacman sbctl
         printf "${GREEN}[✔] ${S_SBE}${NC}\n"
         echo -e "${BLUE}[ℹ] ${S_SBI}${NC}"; sudo sbctl status; echo ""
         if sudo sbctl status | grep -q -i "Setup Mode:.*Enabled"; then
             echo -e "${GREEN}✅ ${S_SMD}${NC}"; echo ""
-            run_task "$S_CKY" sudo sbctl create-keys
-            run_task "$S_EKY" sudo sbctl enroll-keys --microsoft
-            run_task "$S_SBT" sudo limine-enroll-config
+            # Each step depends on the previous one: never sign with keys that were not enrolled.
+            # limine-enroll-config signs the Limine EFI binary with sbctl; from then on
+            # limine-update re-signs it automatically on every bootloader/kernel update.
+            run_task "$S_CKY" sudo sbctl create-keys \
+              && run_task "$S_EKY" sudo sbctl enroll-keys --microsoft \
+              && run_task "$S_SBT" sudo limine-enroll-config
             echo ""; echo -e "${BLUE}[ℹ] ${S_VFY}${NC}"; sudo sbctl verify; echo ""
             SUMMARY+=("$S_SBD"); SUMMARY+=("$S_SBR")
         else
@@ -993,13 +1179,14 @@ if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]] || [[ "$INSTALL_LIMINE_THEME" =~ $S
     echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"; echo ""
     BASE_URL="https://raw.githubusercontent.com/schoperena/cachyos-sch-setup/main"
     if [[ "$INSTALL_LIMINE_PATCH" =~ $S_YN_RE ]]; then
-        run_task "$S_LMS" sudo bash -c "curl -fsSL '$BASE_URL/limine-patch-cmdline' -o /usr/local/bin/limine-patch-cmdline; chmod +x /usr/local/bin/limine-patch-cmdline"
-        run_task "$S_LMH" sudo bash -c "mkdir -p /etc/pacman.d/hooks; curl -fsSL '$BASE_URL/limine-cmdline-patch.hook' -o /etc/pacman.d/hooks/limine-cmdline-patch.hook"
-        run_task "$S_LMA" sudo /usr/local/bin/limine-patch-cmdline; SUMMARY+=("$S_LMD")
+        run_task "$S_LMS" sudo bash -c "curl -fsSL '$BASE_URL/limine-patch-cmdline' -o /usr/local/bin/limine-patch-cmdline && chmod +x /usr/local/bin/limine-patch-cmdline"
+        # Older versions edited limine.conf from a pacman hook; limine-update now owns
+        # limine.conf and reads the parameters from /etc/default/limine instead.
+        [ -f /etc/pacman.d/hooks/limine-cmdline-patch.hook ] && run_task "$S_LMH" sudo rm -f /etc/pacman.d/hooks/limine-cmdline-patch.hook
+        run_task "$S_LMA" sudo /usr/local/bin/limine-patch-cmdline && SUMMARY+=("$S_LMD")
     fi
     if [[ "$INSTALL_LIMINE_THEME" =~ $S_YN_RE ]]; then
-        run_task "$S_LTT" sudo bash -c "curl -fsSL 'https://raw.githubusercontent.com/diegons490/cachyos-limine-theme/main/cachyos.png' -o /boot/cachyos.png; cp /boot/limine.conf /boot/limine.conf.bak-theme; sed -i '/^term_palette_bright:/d;/^term_background:/d;/^term_foreground:/d;/^term_background_bright:/d;/^term_foreground_bright:/d;/^timeout:/d;/^wallpaper:/d;/^interface_branding:/d;/^default_entry:/d' /boot/limine.conf; sed -i '1iterm_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4\\nterm_background: ffffffff\\nterm_foreground: cdd6f4\\nterm_background_bright: ffffffff\\nterm_foreground_bright: cdd6f4\\ntimeout: 10\\nwallpaper: boot():/cachyos.png\\ninterface_branding:\\ndefault_entry: 2' /boot/limine.conf"
-        SUMMARY+=("$S_LTD")
+        run_task "$S_LTT ($LIMINE_THEME_NAME)" apply_limine_theme && SUMMARY+=("$S_LTD: $LIMINE_THEME_NAME")
     fi
 fi
 
