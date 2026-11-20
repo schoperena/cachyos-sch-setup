@@ -49,6 +49,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_BANNER_SUB="Instalador unificado de todo el sistema"
   S_DET_DE="Escritorio detectado"; S_DET_CPU="CPU detectada"; S_DET_GPU="GPU detectada"; S_ARCH_L="Arquitectura"; S_HYBRID="Híbrida (P-core / E-core)"
   S_SUDO="[!] Ingresa tu contraseña para autorizar la instalación:"
+  S_AUR="Instalando helper AUR (paru)"; S_AUR_E="No se pudo instalar paru: los paquetes AUR fallarán"
   S_SYSUP="Actualizando sistema completo (pacman -Syu)"; S_SYSUP_D="Sistema actualizado antes del setup"; S_SYSUP_E="No se pudo actualizar el sistema. Abortando para evitar inconsistencias."
   S_CFG="📋  CONFIGURACIÓN DEL SETUP"
   S_BRW_Q="¿Qué navegador web prefieres instalar?"; S_BRW_3="Ninguno / Mantener el actual"
@@ -170,6 +171,7 @@ else
   S_BANNER_SUB="Unified system installer"
   S_DET_DE="Desktop detected"; S_DET_CPU="CPU detected"; S_DET_GPU="GPU detected"; S_ARCH_L="Architecture"; S_HYBRID="Hybrid (P-core / E-core)"
   S_SUDO="[!] Please enter your password to authorize the installation:"
+  S_AUR="Installing AUR helper (paru)"; S_AUR_E="Could not install paru: AUR packages will fail"
   S_SYSUP="Updating full system (pacman -Syu)"; S_SYSUP_D="System updated before setup"; S_SYSUP_E="System update failed. Aborting to avoid inconsistencies."
   S_CFG="📋  SETUP CONFIGURATION"
   S_BRW_Q="Which web browser do you prefer?"; S_BRW_3="None / Keep current"
@@ -365,10 +367,25 @@ smart_install() {
     [ ${#m[@]} -eq 0 ] && return 0
     # if/else (not "&& ||"): a failed paru install must not fall through to pacman
     if [ "$tool" = "paru" ]; then
-        paru -S --noconfirm --needed "${m[@]}"
+        local helper="${AUR_HELPER:-paru}"
+        command -v "$helper" >/dev/null 2>&1 || { echo "AUR helper '$helper' not found"; return 127; }
+        "$helper" -S --noconfirm --needed "${m[@]}"
     else
         sudo pacman -S --noconfirm --needed "${m[@]}"
     fi
+}
+# Make sure an AUR helper exists. Prefer paru; fall back to an existing yay.
+# paru is in the [cachyos] repo; if that fails, build it from the AUR.
+AUR_HELPER=""
+ensure_aur_helper() {
+    if command -v paru >/dev/null 2>&1; then AUR_HELPER=paru; return 0; fi
+    if sudo pacman -S --noconfirm --needed paru; then AUR_HELPER=paru; return 0; fi
+    if command -v yay >/dev/null 2>&1; then AUR_HELPER=yay; return 0; fi
+    sudo pacman -S --noconfirm --needed base-devel git || return 1
+    local tmp; tmp=$(mktemp -d) || return 1
+    git clone --depth 1 https://aur.archlinux.org/paru-bin.git "$tmp/paru-bin" \
+        && (cd "$tmp/paru-bin" && makepkg -si --noconfirm) && AUR_HELPER=paru
+    local rc=$?; rm -rf "$tmp"; return $rc
 }
 # Keep a timestamped copy of a config file before overwriting it
 backup_file() {
@@ -597,6 +614,13 @@ if ! run_task "$S_SYSUP" sudo pacman -Syu --noconfirm; then
     exit 1
 fi
 SUMMARY+=("$S_SYSUP_D")
+
+# === AUR helper (needed by every "smart_install paru ...") ===
+if command -v paru >/dev/null 2>&1; then AUR_HELPER=paru
+elif ! run_task "$S_AUR" ensure_aur_helper; then echo -e "${RED}[✖] ${S_AUR_E}${NC}"
+fi
+command -v paru >/dev/null 2>&1 && AUR_HELPER=paru
+[ -z "$AUR_HELPER" ] && command -v yay >/dev/null 2>&1 && AUR_HELPER=yay
 
 # === Default variable values (for module-only mode) ===
 BROWSER_PKG=""; BROWSER_CHOICE=3; INSTALL_STEAM="n"; INSTALL_BAMBU="${S_YN_Y}"; INSTALL_VLC="${S_YN_Y}"; INSTALL_SPOTIFY="n"; INSTALL_KEEPASSXC="n"; INSTALL_VSCODE="n"; INSTALL_CODEX="n"; INSTALL_CLAUDE_CODE="n"
@@ -1041,12 +1065,16 @@ if $IS_LAPTOP; then
     fi
     # power-profiles-daemon conflicts with auto-cpufreq. It is D-Bus activated, so it
     # may not show as "enabled"; mask it whenever the unit exists.
+    # Only if auto-cpufreq actually got installed, otherwise we'd leave no power manager.
+    if pacman -Qq auto-cpufreq >/dev/null 2>&1; then
     systemctl is-active --quiet power-profiles-daemon 2>/dev/null && run_task "$S_PPS" sudo systemctl stop power-profiles-daemon
     if systemctl list-unit-files power-profiles-daemon.service >/dev/null 2>&1 \
        && [ "$(systemctl is-enabled power-profiles-daemon 2>/dev/null)" != "masked" ]; then
         run_task "$S_PPM" sudo systemctl mask power-profiles-daemon
     fi
-    run_task "$S_ACF" sudo systemctl enable --now auto-cpufreq
+    fi
+    pacman -Qq auto-cpufreq >/dev/null 2>&1 && run_task "$S_ACF" sudo systemctl enable --now auto-cpufreq
+    if pacman -Qq powertop >/dev/null 2>&1; then
     sudo tee /etc/systemd/system/powertop.service >/dev/null << 'SVCEOF'
 [Unit]
 Description=Powertop tunings
@@ -1061,6 +1089,7 @@ ExecStartPost=/bin/sh -c 'for f in /sys/bus/usb/devices/*/power/control; do echo
 WantedBy=multi-user.target
 SVCEOF
     sudo systemctl daemon-reload; run_task "$S_PWT" sudo systemctl enable --now powertop.service
+    fi
     SUMMARY+=("$S_PWD")
 else SUMMARY+=("$S_DST"); fi
 fi  # end module hardware
