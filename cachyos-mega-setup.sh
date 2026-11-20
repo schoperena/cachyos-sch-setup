@@ -389,6 +389,18 @@ ensure_aur_helper() {
         && (cd "$tmp/paru-bin" && makepkg -si --noconfirm) && AUR_HELPER=paru
     local rc=$?; rm -rf "$tmp"; return $rc
 }
+# claudeX: Claude Code with permission checks bypassed. fish gets a conf.d file
+# (config.fish is rewritten by the base module); bash/zsh get a marked rc line.
+ensure_claudex_alias() {
+    mkdir -p "$HOME/.config/fish/conf.d"
+    echo 'alias claudeX "claude --permission-mode bypassPermissions"' > "$HOME/.config/fish/conf.d/98-claudex.fish"
+    local rc
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        [ -f "$rc" ] || continue
+        grep -q "alias claudeX=" "$rc" || echo "alias claudeX='claude --permission-mode bypassPermissions'" >> "$rc"
+    done
+    return 0
+}
 # Keep a timestamped copy of a config file before overwriting it
 backup_file() {
     [ -f "$1" ] && cp -a "$1" "$1.bak.$(date +%Y%m%d-%H%M%S)"
@@ -1144,6 +1156,7 @@ if [[ "$INSTALL_CLAUDE_CODE" =~ $S_YN_RE ]]; then
     # and keeps itself updated in the background.
     run_task "$S_CLD_I" bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
     ensure_local_bin_path
+    ensure_claudex_alias
     SUMMARY+=("$S_CLD_D")
 fi
 fi  # end module software
