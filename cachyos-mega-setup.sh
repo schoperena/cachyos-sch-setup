@@ -139,6 +139,7 @@ if [ "$LANG_SEL" = "es" ]; then
   S_SBE="sbctl ya instalado."; S_SBI="Estado de Secure Boot:"
   S_SMD="Setup Mode detectado."; S_CKY="Creando llaves criptográficas"
   S_EKY="Inscribiendo llaves (compatibilidad Microsoft)"; S_SBT="Firmando el bootloader Limine"
+  S_SFB="Firmando el bootloader de respaldo (BOOTX64.EFI)"; S_VFN="Nota: los vmlinuz dentro de /boot/<machine-id>/ aparecen sin firma y es normal: Limine los valida por hash BLAKE2. No los firmes."
   S_VFY="Verificación final de firmas:"; S_SBD="Secure Boot: Llaves creadas y bootloader firmado"
   S_SBR="   -> Reinicia y activa Secure Boot en BIOS"
   S_NSM="Setup Mode no habilitado."; S_FKY="Llaves de fábrica siguen en la placa."
@@ -261,6 +262,7 @@ else
   S_SBE="sbctl already installed."; S_SBI="Secure Boot status:"
   S_SMD="Setup Mode detected."; S_CKY="Creating custom cryptographic keys"
   S_EKY="Enrolling keys (Microsoft compatibility)"; S_SBT="Signing Limine bootloader"
+  S_SFB="Signing fallback bootloader (BOOTX64.EFI)"; S_VFN="Note: vmlinuz files under /boot/<machine-id>/ show as unsigned and that is expected: Limine checks them by BLAKE2 hash. Do not sign them."
   S_VFY="Final signature verification:"; S_SBD="Secure Boot: Keys created and bootloader signed"
   S_SBR="   -> Reboot and enable Secure Boot in BIOS"
   S_NSM="Setup Mode not enabled."; S_FKY="Factory keys still on motherboard."
@@ -1188,8 +1190,10 @@ if [[ "$SIGN_BOOTLOADER" =~ $S_YN_RE ]]; then
             # limine-update re-signs it automatically on every bootloader/kernel update.
             run_task "$S_CKY" sudo sbctl create-keys \
               && run_task "$S_EKY" sudo sbctl enroll-keys --microsoft \
-              && run_task "$S_SBT" sudo limine-enroll-config
-            echo ""; echo -e "${BLUE}[ℹ] ${S_VFY}${NC}"; sudo sbctl verify; echo ""
+              && run_task "$S_SBT" sudo limine-enroll-config \
+              && { ! sudo test -f /boot/EFI/BOOT/BOOTX64.EFI \
+                   || run_task "$S_SFB" sudo sbctl sign -s /boot/EFI/BOOT/BOOTX64.EFI; }
+            echo ""; echo -e "${BLUE}[ℹ] ${S_VFY}${NC}"; sudo sbctl verify; echo -e "${DIM}${S_VFN}${NC}"; echo ""
             SUMMARY+=("$S_SBD"); SUMMARY+=("$S_SBR")
         else
             echo -e "${RED}❌ ${S_NSM}${NC}"; echo -e "${YELLOW}${S_FKY}${NC}"; echo ""
